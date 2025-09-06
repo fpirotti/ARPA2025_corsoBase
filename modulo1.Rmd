@@ -13,13 +13,14 @@ output:
     toc_depth: 2
     toc_float:
       collapsed: true
-      smooth_scroll: false 
+      smooth_scroll: false
   pdf_document:
     toc: true
     number_sections: true
     toc_depth: 3
     fig_width: 6
     fig_height: 4
+  ioslides_presentation: default
 papersize: a4
 classoption: a4paper
 editor_options:
@@ -76,7 +77,7 @@ kable(head(meuse, 5), caption = "Dataset *meuse*") %>%
   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
 ```
 
-## Cosa facciamo 
+## Cosa facciamo
 
 Vogliamo un modello per "spiegare" la variabilità e dunque poter stimare
 (interpolare) al meglio dove non abbiamo informazioni.
@@ -312,47 +313,60 @@ funzione CCF :
 
 ```
 
-# Richiamo concetti base: sistemi di riferimento coordinate
+# Richiamo concetti base: dati geografici
 
 ## Introduzione
 
-A grandi linee i dati spaziali sono interpretati digitalmente mediante
-due modelli: il modello vettoriale ed il modello raster. In entrambi i
-casi va comunque compreso che ogni elemento è georiferito, ovvero ha una
-localizzazione in un sistema di riferimento, quindi delle coordinate.
+Rappresentare informazioni associate alla loro posizione nello spazio
 
-## Dati vettoriali
+Due modelli: il modello vettoriale ed il modello raster.
+
+Ogni valore è georiferito, ovvero associato ad un punto in un sistema di
+riferimento, quindi delle coordinate.
+
+L'accuratezza può variare a seconda dello strumento usato per la misura
+
+## Modello vettoriale
 
 I dati vettoriali hanno tre primitive geometriche di base: punti linee e
 poligoni. La base è sempre il punto con una coordinate, in 2d o 3d.
 
 ![By M. W. Toews - Own work, CC BY-SA
-4.0](images/clipboard-2368587503.png){alt="By M. W. Toews - Own work, CC BY-SA 4.0"
-width="298"}
+4.0](images/clipboard-2368587503.png){width="298"}
 
-Ci sono decine di formati di file che rappresentano dati vettoriali. Ne
-abbiamo visto uno all'inizio, il file JSON! Per un riferimento vedete la
-[pagina QUI](https://gdal.org/drivers/vector/index.html). Ad oggi la
-libreria di riferimento per leggere questi dati è la [libreria
-sf](https://r-spatial.github.io/sf/).
+Ci sono decine di formati digitali per i dati vettoriali.
 
-## Raster
+Per un riferimento vedete la [pagina QUI](#0).
 
-Il formato raster è molto semplice: sono nodi a passo costante, quindi
-una "griglia" georiferita mediante uno o più punti. Il passo della
-griglia è spesso identico nelle due direzioni (ma non necessariamente),
-e ne determina la risoluzione spaziale.
+Ad oggi gli strumenti in ambiente R di riferimento per leggere dati
+vettoriali è la [libreria sf](#0).
 
-Ci sono decine di formati di file che rappresentano dati raster. Per un
-riferimento vedete la [pagina
-QUI](https://gdal.org/drivers/raster/index.html). Ad oggi la libreria di
-riferimento per leggere questi dati è la [libreria
-terra](https://rspatial.github.io/terra/).
+## Modello Raster
+
+Il formato raster è una semplificazione/discretizzazione dello spazio in
+celle/pixel/ nodi a passo costante, quindi una "griglia" georiferita
+mediante uno o più punti. Il passo della griglia è spesso identico nelle
+due direzioni (ma non necessariamente), e ne determina la risoluzione
+spaziale.
 
 ::: caption
 ![fonte: appunti GIS Prof. Alberto
-Guarnieri](images/clipboard-3919052629.png){alt="fonte: appunti GIS Prof. Alberto Guarnieri"}
+Guarnieri](images/clipboard-3919052629.png)
 :::
+
+## Modello raster
+
+Può essere 3D (voxel)
+
+Ci sono decine di formati di file che rappresentano dati raster. Per un
+riferimento vedete la pagina QUI.
+
+Ad oggi la libreria di riferimento per leggere questi dati è la libreria
+terra, e stars
+
+Attenzione alla gestione della memoria in quanto i dati raster possono
+diventare molto pesanti dal punto di vista di spazio di memoria (1000
+pixel x 1000 pixel è un raster "piccolo" ma già fornisce 1e6 elementi.
 
 ## Interpolazione
 
@@ -365,8 +379,86 @@ geostatistica.
 
 ::: caption
 ![fonte: appunti GIS Prof. Alberto
-Guarnieri](images/clipboard-658366646.png){alt="fonte: appunti GIS Prof. Alberto Guarnieri"}
+Guarnieri](images/clipboard-658366646.png)
 :::
+
+# Richiamo concetti base: sistemi di riferimento coordinate
+
+## Sistemi di riferimento
+
+Sono delle convenzioni - si stabilisce un sistema con una origine ed un
+orientamento degli assi tra loro perpendicolari - Coordinate
+planimetriche o polari - Sistemi locali o globali
+
+![](images/clipboard-2679979483.png)
+
+## Sistemi di riferimento - la superficie terrestre
+
+Prima di tutto bisogna definire un riferimento fisico - la forma della
+superficie definita come "interfaccia solida" è "complicata" (è elastica
+e subisce l'effetto di svariate forze che la deformano)... e neanche
+stabile nel tempo!
+
+Si prende come convenzione la forma che avrebbe la superficie
+equipotenziale (livello del mare) se non ci fossero terre emerse - lo si
+chiama GEOIDE. E' la superficie di riferimento per comprendere dove la
+gravità spinge l'acqua. NB è in corso con il recente piano di
+telerilevamento nazionale il calcolo di un nuovo nuovo geoide ufficiale
+nazionale ([vedi
+qui](https://rivistageomedia.it/rilievo-e-localizzazione/al-via-la-realizzazione-del-nuovo-modello-altimetrico-del-territorio-italiano))
+
+![](images/clipboard-720462402.png)
+
+## Sistemi di riferimento - la superficie terrestre
+
+Si semplifica td
+
+![](images/clipboard-2610133770.png)
+
+## Coodinate geocentriche
+
+![](images/clipboard-273125662.png)
+
+## Coordinate cartografiche
+
+Coordinate planimetriche, su un piano. Ma la terra non è piatta!
+
+**Soluzione**: accettiamo deformazioni ma le teniamo sotto controllo
+(scala, accuratezza, tolleranza)
+
+## Coordinate cartografiche
+
+Coordinate planimetriche, su un piano. Ma la terra non è piatta!
+
+**Soluzione**: accettiamo deformazioni ma le teniamo sotto controllo
+(scala, accuratezza, tolleranza)
+
+![](images/clipboard-2785380855.png){width="279"}
+
+## Coordinate cartografiche
+
+Si proiettano i punti nella "sfera" su un piano.
+
+## Un esercizio con R
+
+Le coordinate di Prato della Valle: Lat: 45.398557, Long. 11.876460
+
+```{r message=FALSE}
+library(sf)
+lat<-45.398557
+long<-11.876460
+# punti in classe SF
+pt <- st_sfc(st_point(c(long, lat)), crs = 4326)
+# UTM fuso 32
+pt_utm <- st_transform(pt, 32632)
+# 
+pt_ecef <- st_transform(pt, 4978)
+# le coordinate nei vari sistemi
+geographic = sf::st_coordinates(pt)
+planimetric = st_coordinates(pt_utm)
+geocentric = st_coordinates(pt_ecef)
+    
+```
 
 ## Fondamenti di algebra lineare nella regressione lineare
 

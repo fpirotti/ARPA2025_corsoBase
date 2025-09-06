@@ -392,7 +392,7 @@ planimetriche o polari - Sistemi locali o globali
 
 ![](images/clipboard-2679979483.png)
 
-## Sistemi di riferimento - la superficie terrestre
+## Sistemi di riferimento - geoide
 
 Prima di tutto bisogna definire un riferimento fisico - la forma della
 superficie definita come "interfaccia solida" è "complicata" (è elastica
@@ -409,22 +409,26 @@ qui](https://rivistageomedia.it/rilievo-e-localizzazione/al-via-la-realizzazione
 
 ![](images/clipboard-720462402.png)
 
-## Sistemi di riferimento - la superficie terrestre
+## Sistemi di riferimento - ellissoide
 
-Si semplifica td
+Il geoide è fondamentale per comprendere fenomeni legati alle quote, ma
+molto complesso da trattare. Si semplifica con **l'ellissoide**, una
+rappresentazione trattabile matematicamente.
+
+Ci sono tanti ellissoidi che sono stati stimati per avvicinarsi il più
+possibile alla realtà del geoide
+
+![](images/clipboard-2613832442.png)
+
+## Coordinate geografiche
+
+Latitudine e longitudine, coordinate polari.
 
 ![](images/clipboard-2610133770.png)
 
 ## Coodinate geocentriche
 
 ![](images/clipboard-273125662.png)
-
-## Coordinate cartografiche
-
-Coordinate planimetriche, su un piano. Ma la terra non è piatta!
-
-**Soluzione**: accettiamo deformazioni ma le teniamo sotto controllo
-(scala, accuratezza, tolleranza)
 
 ## Coordinate cartografiche
 

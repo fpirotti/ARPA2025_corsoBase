@@ -8,19 +8,18 @@ output:
     fig_height: 4
     footer: 2025, Prof. Francesco Pirotti
     css: style.css
-  html_document:
-    toc: true
-    toc_depth: 2
-    toc_float:
-      collapsed: true
-      smooth_scroll: false
   pdf_document:
     toc: true
     number_sections: true
     toc_depth: 3
     fig_width: 6
     fig_height: 4
-  ioslides_presentation: default
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: true
+      smooth_scroll: false  
 papersize: a4
 classoption: a4paper
 editor_options:
@@ -31,8 +30,9 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse) 
-library(zoo)
+library(stats)
 library(ggplot2)
+library(terra)
 library(gstat)
 library(sp)
 library(kableExtra)
@@ -66,9 +66,15 @@ Cosa si intende per variabilità spaziale?
 
 ## Dati di esempio
 
-Useremo il dataset "meuse"
+Useremo il dataset "meuse" e le librerie che vedete sotto
 
 ```{r}
+library(tidyverse) 
+library(stats)
+library(ggplot2)
+library(terra)
+library(gstat) 
+library(kableExtra)
 library(sp)
 data(meuse)
 class(meuse)
@@ -193,7 +199,7 @@ var(meuse$zinc) == CovZ
 
 ```
 
-## Covarianza (2)
+## Covarianza
 
 Analizziamo un gradiente di temperatura simulato
 
@@ -206,7 +212,7 @@ points(lat_seq, temps, pch = 16, col = rgb(0,0,1,0.3))
 
 ```
 
-## Covarianza (2)
+## Covarianza
 
 La covarianza equivale alla varianza se la calcoliamo confrontandola a
 se stessa, ma se trasliamo di un dato intervallo ("lag") e la
@@ -227,7 +233,7 @@ cov(temps[3:200],temps[1:198])
 
 Questo è un concetto molto importante da comprendere.
 
-## Covarianza (3) {#covarianza-3}
+## Covarianza {#covarianza-3}
 
 Più aumentiamo la distanza del lag, come è ragionevole pensare per dati
 spazialmente correlati, più diminuisce il valore di covarianza (si
@@ -248,7 +254,7 @@ points(temps[1:198], temps[3:200], pch="x", cex=0.5, col="green" )
 
 ```
 
-## Covarianza (4) {#covarianza-4}
+## Covarianza {#covarianza-4}
 
 Non ci crediamo? Rifacciamolo per un dato casuale con media e varianza
 uguale a quella del nostro dato:
@@ -270,7 +276,7 @@ for(lag in seq(6, 36, 10)){
   
   
 plot(names(covs.rand),  unlist(covs.rand), type="b", 
-     ylab="Varianza", 
+     ylab="Covarianza", 
      xlab="lag" )
 
 ```
@@ -432,8 +438,7 @@ Coordinate planimetriche, su un piano. Ma la terra non è piatta!
 Si proiettano i punti nella "sfera" su un piano.
 
 ![Fonte: QGIS
-documentation](images/clipboard-2174303836.png){alt="Fonte: QGIS documentation"
-width="634"}
+documentation](images/clipboard-2174303836.png){width="634"}
 
 ## I sistemi di riferimento (CRS)
 
@@ -532,7 +537,7 @@ volume dell'intersezione tra la nuova cella centrata in x e la vecchia
 cella centrata in xi.
 
 ![By Markluffel - Own work, CC BY-SA
-3.0](images/clipboard-2554189090.png){alt="By Markluffel - Own work, CC BY-SA 3.0"}
+3.0](images/clipboard-2554189090.png)
 
 -   interpolatore esatto: i valori dei dati originali vengono mantenuti
     nei punti di riferimento.
@@ -565,8 +570,7 @@ e da una potenza $p$ che va inserita dall'utente e può essere oggetto di
 ottimizzazione.
 
 ::: caption
-![By Hassan Hadji CC-BY-SA
-Wiki](images/clipboard-1558596244.png){alt="By Hassan Hadji CC-BY-SA Wiki"}
+![By Hassan Hadji CC-BY-SA Wiki](images/clipboard-1558596244.png)
 :::
 
 ## Esempio IDW

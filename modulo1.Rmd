@@ -372,7 +372,8 @@ riferimento vedete la [pagina
 QUI](https://gdal.org/en/stable/drivers/raster/index.html).
 
 Ad oggi la libreria di riferimento per leggere questi dati è la libreria
-[terra](https://rspatial.github.io/terra/), e stars
+[terra](https://rspatial.github.io/terra/), e
+[stars](https://r-spatial.github.io/stars/)
 
 Attenzione alla gestione della memoria in quanto i dati raster possono
 diventare molto pesanti dal punto di vista di spazio di memoria (1000
@@ -576,6 +577,7 @@ ottimizzazione.
 ## Esempio IDW
 
 ```{r}
+library(sp)
 library(gstat)
 data(meuse.grid)
 data(meuse)
@@ -621,3 +623,59 @@ Eseguite la procedura sopra per interpolare la variabile "lead"
 nella cartella condivisa
 [QUI](https://drive.google.com/drive/folders/1X15ZzGnj7gIwK5kz_rhXHxVRnG3lDsaj?usp=sharing)
 dentro la cartella "giorno1" nominando il file cognome_nome.tif
+
+## Giorno 2
+
+-   Metodi deterministici di stima per interpolazione spaziale (IWD ed
+    altri) - approfondimenti
+
+-   Kriging come interpolatore esatto (onora i punti): che cos’è e a
+    cosa serve, basi teoriche
+
+-   Assunzioni su stazionarietà ed isotropia nei processi di kriging
+
+-   Variogramma sperimentale e modello di variogramma: range, sill e
+    nugget.
+
+## Dataset Meuse.grid 
+
+Eseguiamo il codice alla sezione [Esempio IDW] e vediamo bene cosa
+accade e come sfruttare la libreria
+[terra](https://rspatial.github.io/terra/) e
+[stars](https://r-spatial.github.io/stars/) per facilitarci la vita.
+Vediamo che con un oggetto "terra" vengono disegnati vari "livelli"
+contenuti nell'informazione meuse.grid.
+
+```{r echo=TRUE}
+plot(meuse.grid)
+## convertiamo il dataset meuse
+meuse.grid.terra <- terra::rast(meuse.grid)
+# plot(meuse.grid.terra) 
+# plot(meuse.grid.terra) 
+```
+
+## Da terra a IDW
+
+Fondamentalmente gli interpolatori sono stimatori/predittori di valori
+della variabile dipendente in punti geolocalizzati. IDW se usata con
+formula senza covariate per stimare la concentrazione di zinco in
+funzione della distanza dai valori noti, ha bisogno solo dei valori con
+le posizioni (meuse) e di una griglia
+
+```{r}
+### input IDW: meuse sono i dati 
+zinc.idw = idw(formula=zinc~1, data= meuse, new.data=meuse.grid)
+```
+
+Terra è molto utilizzata come libreria, come creare una griglia di
+
+## Giorno 3
+
+-   Variogramma sperimentale e modello di variogramma: range, sill e
+    nugget - esercizi
+
+-   Studio variografico di una variabile georeferenziata
+
+-   Predizione e varianza di kriging
+
+-   Esercizi con Kriging

@@ -635,7 +635,7 @@ dentro la cartella "giorno1" nominando il file cognome_nome.tif
 -   Assunzioni su stazionarietà ed isotropia nei processi di kriging
 
 -   Variogramma sperimentale e modello di variogramma: range, sill e
-    nugget.
+    nugget - introduzione.
 
 ## Dataset Meuse.grid
 
@@ -665,37 +665,607 @@ essere in oggetti di classi
 [Spatial\*](https://edzer.github.io/sp/reference/index.html), [sf](#0) o
 [stars](https://r-spatial.github.io/stars/).
 
-```{r}
+```{r eval=FALSE}
 library(stars)
 library(terra)
 library(sf)
+library(gstat)
 library(sp)
 ### input IDW: meuse sono i dati (locations) e newdata sono le coordinate dove stimare il valore di concentrazione di zinco
 zinc.idw = idw(formula=zinc~1, locations= meuse, newdata=meuse.grid) 
 ## trasformo in oggetto "terra" funziona? 
 meuse.grid.terra <- terra::rast(meuse.grid)
-zinc.idw.terra = idw(formula=zinc~1, locations= meuse, newdata=meuse.grid.terra)
+# zinc.idw.terra = idw(formula=zinc~1, locations= meuse, newdata=meuse.grid.terra)
 ## trasformo in oggetto "stars" funziona? 
 meuse.grid.stars <- stars::st_as_stars(meuse.grid)
 zinc.idw.stars = idw(formula=zinc~1, locations= meuse, newdata=meuse.grid.stars)
+ 
+## trasformo in oggetto "vector" funziona?
+meuse.grid.terra.vect <-  as.points(meuse.grid.terra)  # coordinate
+# zinc.idw.punto.vect = idw(formula=zinc~1, locations= meuse, newdata=meuse.grid.terra.vect)
+## trasformo in oggetto "sf" funziona?
+meuse.grid.sf <-  sf::st_as_sf(meuse.grid.terra.vect) 
+zinc.idw.punto.vect = idw(formula=zinc~1, locations= meuse, newdata=meuse.grid.sf)
 
-## trasformo in oggetto "sf" funziona? 
-grid_df <- as.points(meuse.grid.terra)  # coordinate
 ## funziona solo con oggetti classe Spatial, sf o stars  (vedi  manuale)
-zinc.idw.punto = idw(formula=zinc~1, locations= meuse, newdata=grid_df)
-# plot(zinc.idw)
-  
-## prendiamo una coordinata, la trasformiamo in sf e la usiamo per stimare conc. zinco
-## per questo però dobbiamo usare la libreria terra!
-plot(meuse.grid.terra[[1]])
-p <- click(meuse.grid.terra, n=1, xy=TRUE, cell=TRUE)
-print(p)
-p_sf <- sf::st_as_sf(p, coords = c("x", "y"), crs = crs(meuse.grid.terra))
-zinc.idw.punto = idw(formula=zinc~1, locations= meuse, newdata=p_sf)
-print(zinc.idw.punto)
+
+
 ```
 
-Terra è molto utilizzata come libreria, come creare una griglia di
+## Terra vs Stars
+
+Libreria *terra* ottima per alcune applicazioni, *stars* per altre.
+Stars può essere usata come input per interpolatori IDW KRIGING etc...
+*Terra* consente di usare funzioni utili come *click* (vedi slide
+successiva)
+
+## Stimare il valore in una posizione
+
+Definiamo una o più coordinate dal grafico fatto con *terra*, e la
+usiamo come input alla funzione *idw -* **NB** la funzione *click* usa
+come input un plot di un oggetto classe raster o vector di *terra*
+
+```{r}
+
+## prendiamo una coordinata dal grafico , 
+## la trasformiamo in sf e la usiamo per stimare conc. zinco
+## per questo però dobbiamo usare la libreria terra!
+message("codice commentato da fare in autonomia in quanto richiede interazione manuale")
+# plot(meuse.grid.terra[[1]])
+# p <- click(meuse.grid.terra, n=1, xy=TRUE )
+# print(p)
+# ## devo trasformare in sf oppure in spatial*
+# p_sf <- sf::st_as_sf(p, coords = c("x", "y"), crs = crs(meuse.grid.terra))
+# zinc.idw.punto = idw(formula=zinc~1, locations= meuse, newdata=p_sf)
+# print(zinc.idw.punto)
+```
+
+## Stimare il valore in una posizione - esercizi
+
+Attenzione - solo elementi "terra" vengono correttamente identificati
+con la funzione click
+
+```{r eval=FALSE}
+bubble(meuse, "zinc")
+# p <- click(meuse.grid.terra, n=1, xy=TRUE)
+plot(terra::vect(meuse), "zinc")
+# p <- click(meuse.grid.terra, n=1, xy=TRUE)
+p_sf <- sf::st_as_sf(p, coords = c("x", "y"), crs = crs(meuse.grid.terra))
+zinc.idw.punto = idw(formula=zinc~1, locations= meuse, newdata=p_sf)
+```
+
+## IDW con covariate
+
+Ma la concentrazione di zinco sembra essere correlata in qualche modo
+con la distanza dal fiume? Avere una covariata di facile misura può
+aiutare la stima, non solo con IDW ma anche con Kriging (vediamo dopo il
+co-kriging). Sembra ci sia una relazione, ma non lineare
+
+```{r}
+plot(meuse$dist, meuse$zinc)
+# plot(zinc~dist, meuse)
+```
+
+## IDW con covariate
+
+Non è lineare ma possiamo trasformare i valori in log e radice quadrata
+
+```{r }
+plot(log(zinc)~sqrt(dist), meuse)
+abline(lm(log(zinc)~sqrt(dist), meuse))
+cor.zinc.dist <- cor(log(meuse$zinc),sqrt(meuse$dist))
+mtext(paste("R=", round(cor.zinc.dist, 3)), side = 3)
+```
+
+## IDW con covariate
+
+Siccome questa informazione è implicitamente presente, dato che ho
+potenzialmente la posizione dei fiumi e dunque la distanza da essi,
+posso usarla, ma IDW non ha nella sua composizione spazio per un modello
+di trend per includere covariate, quindi va trattata separatamente.
+
+```{r}
+
+lm_fit <- lm(log(zinc) ~ sqrt(dist), data = meuse)
+meuse$resid <- residuals(lm_fit)
+## IDW dei residui
+idw_res <- idw(resid ~ 1, meuse, meuse.grid)
+## stimo dal modello lineare la concentrazione zinco
+meuse.grid$trend <- predict(lm_fit, newdata = as.data.frame(meuse.grid))
+## aggiungo i residui stimati
+meuse.grid$logzinc_idwreg <- meuse.grid$trend + idw_res$var1.pred
+meuse.grid$zinc_idwreg <- exp(meuse.grid$logzinc_idwreg)
+
+spplot(meuse.grid["zinc_idwreg"], main = "IDW Zinco con covariata distanza")
+ 
+ 
+```
+
+## Kriging
+
+Metodo di stima/interpolazione stocastico, non-deterministico. E'
+"esatta" nel senso che onora i punti - ma anche le medie nell'area
+Bayesiana di maggiore probabilità (zona grigia nella figura)
+
+$$ Z(s)=m(s)+ε(s) $$
+
+-    $Z(s)$ = valore della variabile al punto $s$
+
+-   $m(s)$ = **trend/mean** (parte “deterministica”, modellata da
+    costante, covariate o regressione)
+
+-   $\varepsilon(s)$ = **componente spaziale**, parte aleatoria
+
+### Che cos’è $\varepsilon(s)$ ?
+
+-    È il **processo stocastico residuo** dopo aver tolto la media
+    (trend).
+
+-    Ha queste proprietà statistiche:
+
+    1.   $\mathbb{E}[\varepsilon(s)] = 0$ (media nulla)
+
+    2.   La covarianza dipende solo dalla distanza fra punti
+        (stazionarietà di 2º ordine):\
+        $\text{Cov}(\varepsilon(s), \varepsilon(s+h)) = C(h)$
+
+    3.  La sua variabilità è descritta dal **variogramma**:\
+        $\gamma(h) = \tfrac{1}{2}\mathbb{E}[(\varepsilon(s) - \varepsilon(s+h))^2]$
+
+La media $m(s)$ può essere:
+
+-   **costante** → kriging ordinario
+
+-   **costante nota** → kriging semplice
+
+-   **funzione di covariate** → kriging universale / di regressione
+
+Poiché il kriging è **regressione + interpolazione spaziale**, è
+possibile includere direttamente le covariate nel modello di trend.
+
+![Fonte: wikipedia - I quadrati indicano la posizione dei dati.
+L’interpolazione con kriging, mostrata in rosso, segue le medie degli
+intervalli credibili a distribuzione normale mostrati in grigio. La
+curva tratteggiata rappresenta una spline che è liscia, ma si discosta
+in modo significativo dai valori attesi forniti da quelle
+medie.](images/clipboard-2657392152.png){width="490"}
+
+## Stazionarietà e isotropia
+
+L'interpolazione con kriging si basa su alcune assunzioni fondamentali
+riguardo alla natura dei dati spaziali. Tra queste, le più importanti
+sono la stazionarietà e l'isotropia.
+
+-   attenti: si presuppone un processo stocastico "stazionario", ovvero:
+
+    -   media costante in tutta l'area analizzata
+
+    -   la varianza delle differenze dei valori analizzati dipende solo
+        dalla **distanza** tra coppie di punti e non dalla loro
+        posizione
+
+I due presupposti principali affinché il kriging fornisca la migliore
+previsione lineare imparziale sono quelli della stazionarietà e
+dell'isotropia, sebbene esistano varie forme e metodi di kriging che
+consentono di allentare la forma più rigorosa di ciascuno di questi
+presupposti. Tuttavia, nella realtà, queste condizioni sono spesso
+violate, rendendo necessario adottare approcci più flessibili.
+
+## Stazionarietà e isotropia
+
+1.  Stazionarietà "formale": le proprietà statistiche (media e varianza)
+    del processo spaziale rimangono costanti **in tutte le località**.
+    La distribuzione di probabilità congiunta non varia nello spazio di
+    studio. Di conseguenza, i parametri (come la media complessiva dei
+    valori, l'intervallo e la soglia del variogramma\*) non variano
+    nello spazio di studio. Si presume che lo stesso modello di
+    variogramma\* sia valido in tutto lo spazio di studio. Si tratta di
+    un'ipotesi che raramente si verifica nei dati del mondo reale.
+2.  Stazionarietà "debole": si ipotizza che la media e la
+    varianza/covarianza siano costanti nella regione di interesse
+
+\* Spoiler: il variogramma è un grafico con l'asse delle x che
+rappresenta la distanza tra due punti e l'asse delle y che rappresenta
+la varianza delle differenze tra i valori misurati in quei due punti.
+Solitamente si usa il SEMIvariogramma, ovvero la semivarianza, i.e. metà
+della media di tutte le differenze tra valori di punti che si trovano
+entro una certa distanza reciproca.
+
+## Stazionarietà e isotropia
+
+3.  Isotropia: l'autocorrelazione spaziale tra le risposte in 2 siti
+    dipende solo dalla distanza e non dalla direzione o
+    dall'orientamento. dipende solo dalla distanza e forse dalla
+    direzione dell'orientamento, non dalla posizione di questi siti
+    nella regione di interesse. siti sono situati nella regione di
+    interesse.
+4.  Continuità spaziale: l'autocorrelazione spaziale tra le risposte in
+    2 siti dipende solo dalla distanza e forse dalla direzione
+    dell'orientamento tra i due punti non dalla posizione di questi siti
+    nella regione di interesse.
+
+## Stazionarietà
+
+La caratteristica di stazionarietà è fondamentale per molte tecniche
+geostatistiche
+
+[Stazionarietà di primo ordine]{.underline}: stazionarietà della media,
+ovvero un campione in due aree diverse della regione di studio hanno
+media uguale. Media quindi può essere costante (processo stazionario) o
+funzione dello spazio (trend deterministico) esempio la temperatura che
+cambia con la latitudine .
+
+[Stazionarietà di secondo ordine]{.underline}: stazionarietà della
+varianza, ovvero un campione in due aree diverse della regione di studio
+hanno varianza uguale.
+
+## Stazionarietà - segue
+
+Quasi sempre rappresenta una semplificazione della realtà.
+
+La dimostrazione della stazionarietà in pratica è complesso per le
+seguenti ragioni:
+
+1.  **Dati limitati:** I dati geostatistici sono tipicamente sparsi e
+    irregolarmente distribuiti, rendendo difficile valutare le proprietà
+    statistiche sull'intera area di studio.
+
+2.  **Eterogeneità spaziale:** La maggior parte dei fenomeni naturali
+    presenta una certa variabilità spaziale.
+
+3.  **Dipendenza dalla scala:** I pattern spaziali possono cambiare con
+    la scala, complicando la valutazione della stazionarietà.
+
+## Stazionarietà - esempio
+
+Simulazione da un dataset completo temperatura, usando due transetti,
+vediamo effettivamente la difficoltà nel soddisfare queste condizioni:
+
+![](images/clipboard-1570537791.png){width="447"}
+
+![](images/clipboard-3602532247.png)
+
+## Stazionarietà: Approcci pratici
+
+Metodi per valutare il grado di stazionarietà:
+
+-   **Analisi esplorativa dei dati (EDA):**
+
+    -   Visualizzare i dati utilizzando istogrammi, scatter plot e mappe
+        per identificare potenziali trend o pattern.
+
+    -   Calcolare statistiche descrittive (media, varianza) per diversi
+        sottoinsiemi dei dati per verificare la consistenza.
+
+-   **Analisi del variogramma:**
+
+    -   Esaminare il variogramma per evidenziare la stazionarietà (ad
+        esempio, raggiungimento di un plateau, comportamento isotropo).
+
+    -   Considerare l'adattamento di diversi modelli di variogramma per
+        valutare la loro aderenza.
+
+## Stazionarietà: Considerazioni importanti
+
+-   **La stazionarietà è spesso un'approssimazione:** In pratica, spesso
+    si assume una stazionarietà approssimativa per applicare i metodi
+    geostatistici.
+
+-   **Stazionarietà locale:** Può essere ragionevole assumere la
+    stazionarietà all'interno di sottoregioni più piccole.
+
+-   **Metodi non stazionari:** Se la stazionarietà è chiaramente
+    violata, considerare l'utilizzo di metodi geostatistici non
+    stazionari (e.g. Universal Kriging o Regression Kriging) o altre
+    tecniche di analisi spaziale.
+
+**Ricorda:** L'obiettivo non è dimostrare la stazionarietà senza ombra
+di dubbio, ma valutare la sua plausibilità e prendere decisioni
+informate sull'adeguatezza dei metodi geostatistici
+
+## Test di stazionarietà - variogramma
+
+Insomma... i miei dati 2D soddisfano il presupposto di stazionarietà o
+no? O almeno quanto sono lontani da una perfetta stazionarietà?
+
+NB - La stazionarietà è una decisione, non un'ipotesi (cit. M. Pyrcz);
+pertanto non può essere testata. I dati possono dimostrare che non è una
+supposizione appropriata.
+
+La valutazione della stazionarietà dipende dalla scala. La scelta della
+scala deve basarsi sul problema specifico.
+
+Per indagare/valutare la stazionarietà dei dati spaziali, in pratica la
+cosa migliore è usare un **variogramma o un autocorrelogramma**: - nel
+primo caso è un grafico che mostra come cambia il valore la covarianza a
+diversi lag.
+
+## Variogramma {#variogramma}
+
+Per ogni coppia di punti a una determinata distanza, si calcola la metà
+della differenza al quadrato dei loro valori. Questa quantità è chiamata
+**semivarianza**. Il variogramma mette nell'asse X la distanza e
+nell'asse Y la semivarianza calcolata in funzione della distanza (h).
+
+Il kriging utilizza il semivariogramma, o meglio un modello matematico
+del semivariogramma, per calcolare le stime della superficie ai nodi
+della griglia. Queste stime di kriging sono le migliori stime lineari
+oggettive della superficie nelle posizioni specificate, a condizione che
+la superficie sia stazionaria e che sia stata determinata la forma
+corretta del semivariogramma.
+
+$$
+\gamma(h) = \tfrac{1}{2} \, \mathrm{Var}\big[ Z(s) - Z(s+h) \big]
+$$
+
+-   $Z(s)$ = valore della variabile casuale nel punto sss.
+
+-   $h$ = vettore di spostamento (distanza e direzione).
+
+-   La varianza delle differenze cresce con hhh: punti vicini tendono a
+    somigliarsi (piccola $\gamma(h)$ , punti lontani sono indipendenti
+    (plateau).
+
+## Perchè SEMIvarianza
+
+-   Serve a mantenere la relazione con la **varianza**:\
+    quando $h→∞$, la semivarianza tende alla **varianza della
+    variabile** (non al doppio!)
+
+<!-- -->
+
+-   In pratica il fattore $\frac{1}{2}$ è una convenzione che garantisce
+    che il semivariogramma sia coerente con le proprietà statistiche del
+    processo.
+
+## Semivarianza formula empirica
+
+$$
+\hat{\gamma}(h) = \frac{1}{2N(h)} \sum_{i=1}^{N(h)} \Big( Z(s_i) - Z(s_i+h) \Big)^2
+$$
+
+```{r}
+lzn.vgm = variogram(log(zinc)~1, meuse)
+#plot(lzn.vgm) 
+# prova a aggiungere argomento cloud=TRUE alla funzione variogram!
+lzn.fit = fit.variogram(lzn.vgm, model = vgm(1, "Sph", 900, 1))
+plot(lzn.vgm, lzn.fit)
+```
+
+-    $Z(s_i)$ = valore osservato della variabile al punto $s_i$​.
+
+-   $Z(s_i+h)$ = valore osservato al punto separato da distanza (o lag o
+    intervallo di distanza solitamente nel semivario) $h$​.
+
+-    $N(h)$ = numero di coppie di punti che distano circa $h$​.
+
+-   La differenza al quadrato $(Z(s_i) - Z(s_i+h))^2$ misura la
+    dissimilarità tra i due punti
+
+-   La somma fa la media di tutte le dissimilarità per le coppie a
+    distanza $h$​.
+
+## Semivariogramma - attenzione {#semivariogramma}
+
+Ogni punto della nuvola rappresenta una coppia di punti nel set di dati,
+quindi il numero di punti nella nuvola aumenterà rapidamente
+all'aumentare del numero di punti nel set di dati. Per n punti nel set
+di dati, la nuvola di semivariogramma/covarianza visualizzerà
+
+$$\frac{n*(n-1)}{2}$$
+
+punti. Per questo motivo, non è consigliabile utilizzare set di dati con
+più di qualche migliaio di punti.
+
+## Elementi del semivariogramma
+
+-   **Nugget:** Il valore iniziale del variogramma, indica la
+    variabilità a brevissima distanza. Un nugget elevato suggerisce una
+    componente casuale significativa.
+
+-   **Sill:** Il valore massimo a cui tende il variogramma, rappresenta
+    la variabilità totale.
+
+-   **Portata:** La distanza alla quale il variogramma raggiunge il
+    sill, indica la distanza oltre la quale i valori sono considerati
+    indipendenti.
+
+Il variogramma si dice delimitato se raggiunge un massimo tetto (sill)
+di varianza - vuol dire che c'è stazionarietà.
+
+Se il variogramma non è delimitato (non raggiunge un massimo) non c'è
+(trend).
+
+![](images/clipboard-734289471.png){width="626"}
+
+## Effetto nugget
+
+E' la varianza indipendente dall'autocorrelazione spaziale. Ad esempio
+dovuta agli errori di misura.
+
+## Semivariogramma - cloud vs. plot
+
+![Fonte: Dr. Gaufeng Cao - University of Colorado
+Boulder](images/clipboard-1990818548.png)
+
+## Semivariogramma- esercizio interattivo
+
+```{r eval=FALSE}
+lzn.vgm = variogram(log(zinc)~1, meuse, cloud=TRUE)
+
+plot(plot(lzn.vgm, identify = TRUE), meuse)
+# plot(plot(lzn.vgm, digitize = TRUE), meuse)
+
+```
+
+## Modelli di variogramma
+
+![Courtesy of: GSTAT manual -
+<https://www.gstat.org/gstat.pdf>](images/clipboard-407483668.png)
+
+## Modelli di variogramma (2)
+
+![Courtesy of E.J. Pebesma -
+<https://www.gstat.org/gstat.pdf>](images/clipboard-101695801.png)
+
+## 
+
+## Semivariogramma - esempi 1
+
+![Fonte: Dr. Gaufeng Cao - University of Colorado
+Boulder](images/clipboard-3595471897.png)
+
+## Semivariogramma - esempi 2
+
+![Fonte: Dr. Gaufeng Cao - University of Colorado
+Boulder](images/clipboard-1802194980.png)
+
+## Semivariogramma - esempi 3
+
+![Fonte: Dr. Gaufeng Cao - University of Colorado
+Boulder](images/clipboard-806171150.png)
+
+## Semivariogramma - esempi 4
+
+![Fonte: Dr. Gaufeng Cao - University of Colorado
+Boulder](images/clipboard-3963613121.png)
+
+## 
+
+## Autocorrelogramma
+
+Nel secondo caso è un grafico che mostra l'autocorrelazione dei valori
+dei dati a diversi lag (spaziali o temporali).
+
+Si vuole studiare l'associazione tra le osservazioni della variabile
+analizzata in funzione di distanza e direzione. Le funzioni di
+[covarianza](#covarianza), il [correlogramma](#correlogramma) e il
+[variogramma](#variogramma) / il [semivariogramma](#semivariogramma)
+sono tutte funzioni che caratterizzano numericamente la forza di tali
+associazioni.
+
+## Stazionarietà - variogramma
+
+Il variogramma può aiutare a decidere se il
+
+**Forma coerente:** La forma complessiva del variogramma (ad esempio,
+sferica, esponenziale) deve rimanere coerente in diverse parti dell'area
+di studio.
+
+**Nessuna tendenza sistematica:** Il variogramma non deve presentare
+tendenze chiare verso l'alto o verso il basso all'aumentare della
+distanza.
+
+**Nessuna dipendenza dalla posizione:** Il variogramma non deve variare
+in modo significativo a seconda della posizione delle coppie di punti
+all'interno dell'area di studio.
+
+```{r}
+library(gstat)
+  
+```
+
+## Test di stazionarietà - variogramma (3)
+
+Vedi portale interattivo [Geospatial
+App](https://www.cirgeo.unipd.it/app01/GeospatialApp/){target="_blank"}
+
+## Isotropia
+
+Direzionalità - si può testare fornendo un valore di *alpha* al
+variogramma.
+
+```{r anisotropy }
+ 
+
+```
+
+## Rilassare le condizioni - **stazionarietà**
+
+Trend spaziale: Si introduce un trend deterministico per modellare
+variazioni sistematiche della media. E.g. Se troviamo delle covariate
+(e.g. quota che spiega la temperatura) possiamo inserirle nel modello
+per eliminarne gli effetti ed isolare unicamente l'effetto spaziale
+separandolo da quello di altre covariate.
+
+Covarianza locale: Si stimano parametri di covarianza diversi per
+diverse regioni dello spazio.
+
+Decomposizione della varianza: Si scompone la varianza in componenti
+stazionarie e non stazionarie.
+
+Applicazione di trasformazioni matematiche ai dati per renderli più
+stazionari (es. logaritmo, potenza).
+
+Modelli geostatistici più complessi che tengano conto della non
+stazionarietà (Kriging specifico).
+
+Analisi locale: Dividere lo spazio in sottoregioni più omogenee e
+analizzare separatamente il variogramma in ciascuna sottoregione
+
+## Rilassare le condizioni - **isotropia**
+
+Trasformare le coordinate e.g. Si ruota il sistema di riferimento in
+modo che gli assi coincidano con le direzioni principali di anisotropia.
+In questo modo, si può ottenere un variogramma più circolare nelle nuove
+coordinate.
+
+Utilizzare modelli di variogramma anisotropi più semplici, come quelli
+con un angolo di rotazione fisso o con un'anisotropia geometrica.
+
+## Variabili regionalizzate
+
+Sono grandezze il cui valore dipende dalla localizzazione ovvero dal
+vettore delle [X Y] di coordinate spaziali.
+
+La teoria delle variabili regionalizzate non utilizza
+l'autocorrelazione, ma una proprietà correlata chiamata semivarianza per
+esprimere il grado di relazione tra i punti di una superficie.
+
+La semivarianza è semplicemente la metà della varianza delle differenze
+tra tutti i possibili punti distanziati da una distanza costante.
+
+La semivarianza a una distanza d = 0 dovrebbe essere pari a zero, perché
+non ci sono differenze tra punti che vengono confrontati con se stessi.
+Tuttavia, man mano che i punti vengono confrontati con punti sempre più
+distanti, la semivarianza aumenta. A una certa distanza, chiamata
+intervallo,
+
+la semivarianza diventerà approssimativamente uguale alla varianza della
+superficie stessa. Si tratta della massima distanza su cui il valore di
+un punto della superficie è correlato al valore di un altro punto.
+L'intervallo definisce il massimo vicinato su cui selezionare i punti di
+controllo per stimare un nodo della griglia, per sfruttare la
+correlazione statistica tra le osservazioni. Nel caso in cui il nodo
+della griglia e le osservazioni siano distanziate in modo tale che tutte
+le distanze superino l'intervallo, il kriging produce la stessa stima
+della statistica classica, ovvero la media.
+
+## Finestra
+
+Quando si lavora con un set di punti, è necessario specificare la
+regione spaziale o la finestra in cui si analizza il modello.
+
+Nel modulo **spatstat**, la finestra di osservazione è una parte parte
+integrante del lavoro.
+
+Un modello serve per stimare valori della variabile di studio in punti
+dove non sono presenti osservazioni. Anche qualcosa di semplice come la
+stima della distribuzione a pattern (raggruppate, casuali o griglia)
+dipende dalla finestra di osservazione considerata.
+
+I risultati saranno diversi analizzando finestre diverse. Ad esempio,
+calcolando la finestra di osservazione mediante l'area convessa dei
+punti.
+
+Solitamente la finestra di osservazione è un rettangolo, quindi basta
+specificare le dimensioni x e y del rettangolo ed i vertici.
+
+Finestre di osservazione con una forma più complessa possono essere
+facilmente rappresentate in **spatstat**, come descritto di seguito. Per
+le situazioni in cui la finestra è davvero sconosciuta, **spatstat**
+inltre fornisce la funzione *ripras* per calcolare lo stimatore di
+Ripley-Rasson della finestra, data solo la posizione dei punti.
 
 ## Giorno 3
 
@@ -707,3 +1277,234 @@ Terra è molto utilizzata come libreria, come creare una griglia di
 -   Predizione e varianza di kriging
 
 -   Esercizi con Kriging
+
+## Kriging: tipologie
+
+### Geostatistica uni-(co)variata
+
+Una variabile sola considerata o con multivariata (co-kriging)
+
+-   **Simple K** - si presuppone una media costante nota nell'area di
+    lavoro
+
+-   **Ordinary K** - si presuppone una media costante ma ignota
+
+-   **Universal K** - si presuppone una media ignota non costante ma con
+    un trend lineare
+
+![gstat albero decisionale (Applied Spatial Data Analysis with R,
+2013)](images/clipboard-1965914475.png)
+
+# TECNICHE DI KRIGING - Diversi Kriging {.Section1 .titlepage}
+
+## Ordinary & Simple Kriging (OK)
+
+Ordinary: Assume che la media della variabile regionalizzata sia
+sconosciuta e costante. Ampiamente utilizzato per la maggior parte delle
+applicazioni. Fornisce stime e i relativi errori Si applica nel caso di
+funzioni aleatorie stazionarie, ossia nel caso in cui la media dei
+residui sia costante in tutto il dominio di studio (stazionarietà!)
+
+Simple: Presuppone che la media della variabile regionalizzata sia nota.
+Richiede una conoscenza accurata della media. Si applica nel caso di
+funzioni aleatorie stazionarie con media dei residui costante e nota.
+Necessita di un elevato numero di dati misurati.
+
+[E’ più preciso del KO *nel caso di un elevato numero di
+misurazioni.*]{.underline}
+
+## Universal Kriging (UK)
+
+Incorpora una superficie di tendenza (polinomiale) per modellare
+variazioni su larga scala. Utile quando c'è una chiara tendenza nei
+dati, come nel nostro caso studio.
+
+Si applica nel caso di funzioni aleatorie non stazionarie intrinseche,
+ossia nel caso in cui la media dei residui non è costante e la legge di
+autocorrelazione presenta un trend.
+
+La funzione aleatoria Z(x) può essere considerata in ogni punto x del
+dominio come la sovrapposizione di due componenti:
+
+-   Il trend m(x) che rappresenta la parte deterministica
+
+-   Il residuo Y(x) che rappresenta la parte aleatoria
+
+$$Z(x) = Y(x) + m(x)$$
+
+Se il residuo Y(x) è una funzione stazionaria e non è correlata al trend
+allora è possibile applic are la procedura di Kriging al residuo e
+quindi effettuare lo Universal Kriging (UK).
+
+## Co-Kriging (CK)
+
+Il **Co-kriging** è un'estensione del kriging ordinario che incorpora
+variabili aggiuntive, note come variabili secondarie o ausiliarie, per
+migliorare l'accuratezza della previsione della variabile primaria di
+interesse.
+
+### Come funziona:
+
+-   **Variabili multiple:** Considera più variabili contemporaneamente.
+    **Correlazione incrociata:** Utilizza la correlazione incrociata tra
+    le variabili primarie e secondarie.
+-   Previsione migliorata: Incorporando le informazioni provenienti da
+    variabili correlate, il co-kriging può spesso fornire previsioni più
+    accurate rispetto al kriging ordinario.
+
+### Differenze chiave rispetto al Kriging ordinario:
+
+**Dati:** Il kriging ordinario utilizza una sola variabile, mentre il
+co-kriging utilizza più variabili.
+
+**Complessità del modello:** Il co-kriging comporta la modellazione
+delle correlazioni incrociate tra le variabili, rendendolo più complesso
+del kriging ordinario.
+
+**Accuratezza della previsione:** Il co-kriging spesso porta a un
+miglioramento dell'accuratezza della previsione grazie alle informazioni
+aggiuntive fornite dalle variabili secondarie.
+
+### Vantaggi del Co-Kriging:
+
+-   **Miglioramento dell'accuratezza:** Come già detto, può migliorare
+    significativamente l'accuratezza della previsione.
+-   **Uso efficiente dei dati:** Sfrutta le informazioni provenienti da
+    più variabili, sfruttando al massimo i dati disponibili.
+-   Gestire i dati mancanti: può essere utilizzato per stimare i valori
+    mancanti in una variabile sulla base dei valori di altre variabili.
+
+### Applicazioni del Co-Kriging:
+
+-   **Scienze ambientali:** Previsione delle proprietà del suolo, dei
+    livelli di inquinamento atmosferico, ecc. **Idrologia:** Stima dei
+    livelli delle acque sotterranee, delle precipitazioni, ecc.
+    **Geostatistica:** Previsione dei gradi dei minerali, delle riserve
+    minerarie, ecc.
+
+**In sostanza, il co-kriging è uno strumento prezioso quando si hanno
+più variabili correlate e si vuole migliorare l'accuratezza delle
+proprie previsioni.**
+
+## External drift Kriging (KED)
+
+**L'EDK (External Drift Kriging)** è una variante dell'Universal Kriging
+in cui la componente di tendenza o deriva è determinata da variabili
+esterne anziché dalle sole coordinate spaziali.
+
+### Come funziona:
+
+-   **Variabili esterne:** si tratta di variabili ausiliarie che
+    influenzano la variabile dipendente. Possono essere qualsiasi cosa,
+    dall'altitudine all'uso del suolo, dal tipo di terreno a qualsiasi
+    altro fattore rilevante.
+-   Un modello di regressione viene utilizzato per modellare la
+    relazione tra la variabile dipendente e le variabili esterne.
+-   I residui di questo modello di regressione rappresentano la
+    componente spazialmente correlata dei dati. **Kriging:** Il Kriging
+    ordinario viene quindi applicato a questi residui per interpolarli.
+-   La previsione finale in una località non campionata è la somma del
+    valore previsto dal modello di regressione e del residuo previsto
+    dal kriging.
+
+### Differenze chiave rispetto al Kriging universale:
+
+-   **Definizione della deriva:** Il kriging universale utilizza
+    funzioni polinomiali delle coordinate spaziali per modellare la
+    deriva, mentre l'EDK utilizza variabili esterne.
+-   **Flessibilità:** EDK offre una maggiore flessibilità in quanto può
+    incorporare vari tipi di variabili esterne, migliorando
+    potenzialmente l'accuratezza della previsione.
+
+### Vantaggi dell'EDK:
+
+-   **Migliore accuratezza:** Incorporando variabili esterne rilevanti,
+    EDK può spesso fornire previsioni più accurate rispetto a Universal
+    Kriging.
+
+-   **Migliore comprensione:** L'EDK aiuta a comprendere l'influenza dei
+    fattori esterni sulla variabile di interesse.
+
+-   **Versatilità:** Può essere applicato a un'ampia gamma di dati e
+    problemi spaziali.
+
+**In sostanza, l'External Drift Kriging è un potente strumento di
+previsione spaziale quando esiste una chiara relazione tra la variabile
+di interesse e altri fattori esterni.**
+
+## Regression Kriging (RK)
+
+Il **Regression Kriging** è una tecnica di interpolazione spaziale che
+combina i punti di forza della regressione e del kriging. È
+essenzialmente un metodo ibrido.
+
+### Come funziona:
+
+1.  Un modello di regressione viene costruito per spiegare la variazione
+    della variabile target utilizzando variabili ausiliarie (covariate).
+2.  I residui del modello di regressione rappresentano la parte non
+    spiegata della variazione.
+3.  I residui vengono interpolati con tecniche di kriging (come il
+    Kriging ordinario) per catturare l'autocorrelazione spaziale.
+4.  La previsione finale è la somma del valore previsto dal modello di
+    regressione e del residuo previsto dal kriging.
+
+### Differenze chiave rispetto ad altri metodi:
+
+-   **Combina regressione e kriging:** Questo approccio ibrido sfrutta i
+    punti di forza di entrambi i metodi.
+-   **Incorpora variabili ausiliarie:** Il kriging di regressione
+    utilizza esplicitamente variabili ausiliarie per migliorare
+    l'accuratezza della previsione.
+-   Il modello di regressione cattura le tendenze su larga scala, mentre
+    il kriging gestisce l'autocorrelazione spaziale su piccola scala.
+
+### Vantaggi della regressione kriging:
+
+-   **Migliore accuratezza:** Spesso fornisce previsioni più accurate
+    rispetto al semplice kriging o alla sola regressione.
+-   **Flessibilità:** Può adattarsi a vari tipi di modelli di
+    regressione e tecniche di kriging.
+-   Migliore comprensione:\*\* Aiuta a capire l'influenza delle
+    variabili ausiliarie sulla variabile target.
+
+### Applicazioni del kriging di regressione:
+
+-   **Scienze ambientali:** Previsione dell'inquinamento atmosferico,
+    delle proprietà del suolo, ecc.
+-   **Idrologia:** Stima dei livelli delle acque sotterranee, delle
+    precipitazioni, ecc. **Agricoltura:** Previsione della resa dei
+    raccolti, dell'umidità del suolo, ecc.
+
+**In sostanza, il Kriging di regressione è uno strumento potente quando
+esistono tendenze o modelli significativi nei dati che possono essere
+spiegati da variabili ausiliarie e quando esiste anche
+un'autocorrelazione spaziale nei residui.**
+
+## Indicator Kriging (IK)
+
+Tratta i dati come categorici (ad esempio, sopra o sotto una soglia).
+Utilizzato per la mappatura probabilistica e la valutazione del rischio.
+
+## Alcune criticità
+
+I risultati possono risultare carenti quando:
+
+-   La geostatistica viene spesso applicata con pochi dati a
+    disposizione.
+-   Raramente viene indicato il modello di stima e di interpolazione
+    utilizzato.
+-   Spesso non vengono indicati i punti utilizzati per l’interpolazione
+    e/o i valori che la variabile assume in tali punti, né il dominio di
+    studio.
+-   A volte vengono utilizzate condizioni al contorno nell’area (punti
+    fittizi) che non rispecchiano dati reali misurati.
+-   Raramente vengono applicati più modelli di stima allo stesso set di
+    dati ed effettuato il confronto fra le varianze di stima.
+-   Quando vengono utilizzati modelli statistici (kriging), non viene
+    riportata la determinazione del variogramma sperimentale e del
+    variogramma modello utilizzato, né viene prodotta la mappa delle
+    incertezze.
+
+**non limitarsi solo a fornire delle “mappe”, ma indicare tutte le
+valutazioni che le hanno prodotte oltre all’incertezza dei risultati.**

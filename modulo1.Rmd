@@ -1115,8 +1115,6 @@ plot(plot(lzn.vgm, identify = TRUE), meuse)
 ![Courtesy of E.J. Pebesma -
 <https://www.gstat.org/gstat.pdf>](images/clipboard-101695801.png)
 
-## 
-
 ## Semivariogramma - esempi 1
 
 ![Fonte: Dr. Gaufeng Cao - University of Colorado
@@ -1136,8 +1134,6 @@ Boulder](images/clipboard-806171150.png)
 
 ![Fonte: Dr. Gaufeng Cao - University of Colorado
 Boulder](images/clipboard-3963613121.png)
-
-## 
 
 ## Autocorrelogramma
 
@@ -1229,10 +1225,16 @@ della statistica classica, ovvero la media.
 
 ## Studio variografico
 
-Condizione di isotropia - verifica
+Condizione di isotropia - verifica.
+
+Esercizio - stima con una variabile completamente casuale
 
 ```{r}
-plot(variogram(log(zinc) ~ 1, meuse, alpha = c(0, 45,90, 135)))
+
+#meuse$rand <- runif(nrow(meuse))
+
+plot(variogram(log(zinc) ~ 1, meuse, alpha = c(0, 45,90, 135))) 
+
 ```
 
 ## Studio variografico
@@ -1264,10 +1266,14 @@ un modello che riteniamo possa essere adatto. Se i dati non sono
 coerenti con il modello, potrebbe dare una non-soluzione (singular fit)
 e non trovare i parametri del modello.
 
+Esercizio - fornite voi a mano un sill, nugget e range (vedi
+documentazione vgm e [Variogramma])
+
 ```{r}
  # show.vgms()
-# ?vgm
+# NB come mai fornisce un singular fit?
 v.fit <- fit.variogram(v, vgm(1, "Sph", 10, 1))
+# ?vgm 
 ```
 
 ## Stimare il modello ed i parametri
@@ -1335,7 +1341,7 @@ Una variabile sola considerata o con multivariata (co-kriging)
 -   **Universal K** - si presuppone una media ignota non costante ma con
     un trend lineare
 
-![](images/clipboard-1448665520.png)
+![](images/clipboard-1448665520.png){width="654"}
 
 # TECNICHE DI KRIGING - Diversi Kriging {.Section1 .titlepage}
 
@@ -1346,6 +1352,14 @@ Richiede una conoscenza accurata della media. Si applica nel caso di
 funzioni aleatorie stazionarie con media dei residui costante e nota.
 Necessita di un elevato numero di dati misurati.
 
+```{r}
+vg <- variogram(log(zinc)~1, meuse)
+fit <- fit.variogram(vg, vgm("Sph"))
+
+sk <- krige(log(zinc)~1, meuse, meuse.grid, model=fit,
+            beta=5.5)  # conosciamo la media e la forniamo 
+```
+
 ## Ordinary Kriging (OK)
 
 Assume che la media della variabile regionalizzata sia sconosciuta e
@@ -1354,6 +1368,13 @@ costante. Ampiamente utilizzato per la maggior parte delle applicazioni
 nel caso di funzioni aleatorie stazionarie, ossia nel caso in cui la
 media dei residui sia costante in tutto il dominio di studio
 (stazionarietà!)
+
+```{r}
+vg <- variogram(log(zinc)~1, meuse)
+fit <- fit.variogram(vg, vgm("Sph"))
+
+sk <- krige(log(zinc)~1, meuse, meuse.grid, model=fit )  # niente media, viene stimata con metodo dei minimi quadrati
+```
 
 ## Universal Kriging (UK)
 
@@ -1368,19 +1389,27 @@ autocorrelazione presenta un trend.
 La funzione aleatoria Z(x) può essere considerata in ogni punto x del
 dominio come la sovrapposizione di due componenti:
 
--   Il trend m(x) che rappresenta la parte deterministica
+$$ Z(s)=m(s)+ε(s) $$
 
--   Il residuo Y(x) che rappresenta la parte aleatoria
+-   $Z(s)$ = valore della variabile al punto $s$
 
-$$Z(x) = Y(x) + m(x)$$
+-   $m(s)$ = **trend/mean** (parte “deterministica”, modellata da
+    costante, covariate o regressione)
 
-Se il residuo Y(x) è una funzione stazionaria e non è correlata al trend
-allora è possibile applicare la procedura di Kriging al residuo e quindi
-effettuare lo Universal Kriging (UK).
+-   $\varepsilon(s)$ = **componente spaziale**, parte aleatoria
+
+Se la componente residua $\varepsilon(s)$ è una funzione stazionaria e
+non è correlata al trend allora è possibile applicare la procedura di
+Kriging al residuo e quindi effettuare Universal Kriging (UK).
+
+```{r}
+
+```
 
 ## Esercizio SK, OK, UK
 
-Provate a cambiare alcuni parametri e visualizzare il risultato
+Riassumendo; provate a cambiare alcuni parametri e visualizzare il
+risultato
 
 ```{r}
 mean(log(meuse$zinc))
@@ -1404,7 +1433,22 @@ variabili aggiuntive, note come variabili secondarie o ausiliarie, per
 migliorare l'accuratezza della previsione della variabile primaria di
 interesse.
 
-### Come funziona:
+```{r  eval=FALSE}
+
+# Creo oggetto gstat con due variabili
+g <- gstat(NULL, "zinc", log(zinc)~1, meuse)
+g <- gstat(g, "cadmium", log(cadmium)~1, meuse)
+
+# Variogrammi e cross-variogramma
+vg <- variogram(g)
+
+# Fit LMC con un modello sferico (va adattato manualmente)
+model <- vgm(psill=1, model="Sph", range=900, nugget=0.05)
+fit <- fit.lmc(vg, g, model)
+
+```
+
+## Come funziona CK:
 
 -   **Variabili multiple:** Considera più variabili contemporaneamente.
     **Correlazione incrociata:** Utilizza la correlazione incrociata tra
@@ -1413,7 +1457,7 @@ interesse.
     variabili correlate, il co-kriging può spesso fornire previsioni più
     accurate rispetto al kriging ordinario.
 
-### Differenze chiave rispetto al Kriging ordinario:
+## Differenze chiave rispetto al Kriging ordinario:
 
 **Dati:** Il kriging ordinario utilizza una sola variabile, mentre il
 co-kriging utilizza più variabili.
@@ -1426,7 +1470,7 @@ del kriging ordinario.
 miglioramento dell'accuratezza della previsione grazie alle informazioni
 aggiuntive fornite dalle variabili secondarie.
 
-### Vantaggi del Co-Kriging:
+## Vantaggi del Co-Kriging:
 
 -   **Miglioramento dell'accuratezza:** Come già detto, può migliorare
     significativamente l'accuratezza della previsione.
@@ -1435,7 +1479,7 @@ aggiuntive fornite dalle variabili secondarie.
 -   Gestire i dati mancanti: può essere utilizzato per stimare i valori
     mancanti in una variabile sulla base dei valori di altre variabili.
 
-### Applicazioni del Co-Kriging:
+## Applicazioni del Co-Kriging:
 
 -   **Scienze ambientali:** Previsione delle proprietà del suolo, dei
     livelli di inquinamento atmosferico, ecc. **Idrologia:** Stima dei
@@ -1447,13 +1491,17 @@ aggiuntive fornite dalle variabili secondarie.
 più variabili correlate e si vuole migliorare l'accuratezza delle
 proprie previsioni.**
 
-## External drift Kriging (KED)
+## External drift Kriging (EDK)
 
 **L'EDK (External Drift Kriging)** è una variante dell'Universal Kriging
 in cui la componente di tendenza o deriva è determinata da variabili
 esterne anziché dalle sole coordinate spaziali.
 
-### Come funziona:
+```{r  eval=FALSE}
+edk <- krige(log(zinc)~dist, meuse, meuse.grid, model=fit)
+```
+
+## Come funziona EDK:
 
 -   **Variabili esterne:** si tratta di variabili ausiliarie che
     influenzano la variabile dipendente. Possono essere qualsiasi cosa,
@@ -1468,7 +1516,7 @@ esterne anziché dalle sole coordinate spaziali.
     valore previsto dal modello di regressione e del residuo previsto
     dal kriging.
 
-### Differenze chiave rispetto al Kriging universale:
+## Differenze chiave rispetto al Kriging universale:
 
 -   **Definizione della deriva:** Il kriging universale utilizza
     funzioni polinomiali delle coordinate spaziali per modellare la
@@ -1477,7 +1525,7 @@ esterne anziché dalle sole coordinate spaziali.
     incorporare vari tipi di variabili esterne, migliorando
     potenzialmente l'accuratezza della previsione.
 
-### Vantaggi dell'EDK:
+## Vantaggi dell'EDK:
 
 -   **Migliore accuratezza:** Incorporando variabili esterne rilevanti,
     EDK può spesso fornire previsioni più accurate rispetto a Universal
@@ -1499,7 +1547,18 @@ Il **Regression Kriging** è una tecnica di interpolazione spaziale che
 combina i punti di forza della regressione e del kriging. È
 essenzialmente un metodo ibrido.
 
-### Come funziona:
+```{r  eval=FALSE}
+lm_fit <- lm(log(zinc)~dist, data=meuse@data)
+meuse$resid <- residuals(lm_fit)
+
+vg_res <- variogram(resid~1, meuse)
+fit_res <- fit.variogram(vg_res, vgm("Sph"))
+
+rk <- krige(resid~1, meuse, meuse.grid, model=fit_res)
+rk$pred <- rk$var1.pred + predict(lm_fit, meuse.grid@data)
+```
+
+## Come funziona RK:
 
 1.  Un modello di regressione viene costruito per spiegare la variazione
     della variabile target utilizzando variabili ausiliarie (covariate).
@@ -1510,7 +1569,7 @@ essenzialmente un metodo ibrido.
 4.  La previsione finale è la somma del valore previsto dal modello di
     regressione e del residuo previsto dal kriging.
 
-### Differenze chiave rispetto ad altri metodi:
+## Differenze chiave  RK rispetto ad altri metodi:
 
 -   **Combina regressione e kriging:** Questo approccio ibrido sfrutta i
     punti di forza di entrambi i metodi.
@@ -1520,7 +1579,7 @@ essenzialmente un metodo ibrido.
 -   Il modello di regressione cattura le tendenze su larga scala, mentre
     il kriging gestisce l'autocorrelazione spaziale su piccola scala.
 
-### Vantaggi della regressione kriging:
+## Vantaggi di RK:
 
 -   **Migliore accuratezza:** Spesso fornisce previsioni più accurate
     rispetto al semplice kriging o alla sola regressione.
@@ -1529,7 +1588,7 @@ essenzialmente un metodo ibrido.
 -   Migliore comprensione:\*\* Aiuta a capire l'influenza delle
     variabili ausiliarie sulla variabile target.
 
-### Applicazioni del kriging di regressione:
+## Applicazioni del RK:
 
 -   **Scienze ambientali:** Previsione dell'inquinamento atmosferico,
     delle proprietà del suolo, ecc.
@@ -1546,6 +1605,29 @@ un'autocorrelazione spaziale nei residui.**
 
 Tratta i dati come categorici (ad esempio, sopra o sotto una soglia).
 Utilizzato per la mappatura probabilistica e la valutazione del rischio.
+
+Si ottiene trasformando una variabile continua in un indicatore (0/1),
+oppure riducendo una variabile categorica a variabile binaria. Un
+esempio è l’indicatore che vale 1 se lo zinco è **inferiore a 500 ppm**
+e 0 altrimenti:
+
+```{r eval=FALSE }
+
+meuse$ind <- ifelse(meuse$zinc > 1000, 1, 0)
+
+vg_ind <- variogram(ind~1, meuse)
+fit_ind <- fit.variogram(vg_ind, vgm("Sph"))
+
+ik <- krige(ind~1, meuse, meuse.grid, model=fit_ind)
+
+## oppure (da bivand et al. )
+# Definizione della formula indicatore
+ind.f <- I(zinc < 500) ~ 1
+# Stima del variogramma
+ind.fit <- fit.variogram(variogram(ind.f, meuse), vgm(1, "Sph", 800, 1))
+# Kriging per indicatori
+ind.kr <- krige(ind.f, meuse, meuse.grid, model = ind.fit)
+```
 
 ## Alcune criticità
 

@@ -80,3 +80,23 @@ plot(variogram(g), model = g$model, main = "models fitted by eye")
 
 
 
+data(meuse)
+coordinates(meuse) <- ~x+y
+
+data(meuse.grid)
+coordinates(meuse.grid) <- ~x+y
+gridded(meuse.grid) <- TRUE
+
+
+
+
+# Creo oggetto gstat con due variabili
+g <- gstat(NULL, "zinc", log(zinc)~1, meuse)
+g <- gstat(g, "cadmium", log(cadmium)~1, meuse)
+
+# Variogrammi e cross-variogramma
+vg <- variogram(g)
+
+# Fit LMC con un modello sferico (va adattato manualmente)
+model <- vgm(psill=1, model="Sph", range=900, nugget=0.05)
+fit <- fit.lmc(vg, g, model)

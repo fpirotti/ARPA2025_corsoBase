@@ -3,23 +3,24 @@ title: "ANALISI GEOSTATISTICA DEI DATI AMBIENTALI – Livello base (T28_25_3_1)"
 author: "Francesco Pirotti"
 date: "`r Sys.Date()`"
 output:
-  slidy_presentation:
-    fig_width: 6
-    fig_height: 4
-    footer: 2025, Prof. Francesco Pirotti
-    css: style.css
   pdf_document:
     toc: true
     number_sections: true
     toc_depth: 3
     fig_width: 6
     fig_height: 4
+  beamer_presentation: default
   html_document:
     toc: true
     toc_depth: 2
     toc_float:
       collapsed: true
-      smooth_scroll: false  
+      smooth_scroll: false
+  slidy_presentation:
+    fig_width: 6
+    fig_height: 4
+    footer: 2025, Prof. Francesco Pirotti
+    css: style.css
 papersize: a4
 classoption: a4paper
 editor_options:
@@ -792,7 +793,7 @@ Metodo di stima/interpolazione stocastico, non-deterministico. E'
 "esatta" nel senso che onora i punti - ma anche le medie nell'area
 Bayesiana di maggiore probabilità (zona grigia nella figura)
 
-$$ Z(s)=m(s)+ε(s) $$
+$$ Z(s)=m(s)+\epsilon(s) $$
 
 -   $Z(s)$ = valore della variabile al punto $s$
 
@@ -1016,7 +1017,7 @@ $$
 ## Perchè SEMIvarianza
 
 -   Serve a mantenere la relazione con la **varianza**:\
-    quando $h→∞$, la semivarianza tende alla **varianza della
+    quando $h→\infty$, la semivarianza tende alla **varianza della
     variabile** (non al doppio!)
 
 <!-- -->
@@ -1389,7 +1390,7 @@ autocorrelazione presenta un trend.
 La funzione aleatoria Z(x) può essere considerata in ogni punto x del
 dominio come la sovrapposizione di due componenti:
 
-$$ Z(s)=m(s)+ε(s) $$
+$$ Z(s)=m(s)+\epsilon(s) $$
 
 -   $Z(s)$ = valore della variabile al punto $s$
 

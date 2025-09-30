@@ -51,6 +51,9 @@ meuse dataset\
 metodi di interpolazione geografica\
 <https://r-spatial.org/book/12-Interpolation.html>
 
+Applied Spatial Data Analysis with R
+<https://gis.humboldt.edu/OLM/r/Spatial%20Analysis%20With%20R.pdf>
+
 ## Obiettivo
 
 Stimare i valori di una variabile nel dominio dello spazio
@@ -624,7 +627,9 @@ nella cartella condivisa
 [QUI](https://drive.google.com/drive/folders/1X15ZzGnj7gIwK5kz_rhXHxVRnG3lDsaj?usp=sharing)
 dentro la cartella "giorno1" nominando il file cognome_nome.tif
 
-## Giorno 2
+# Giorno 2 {.Section1 .titlepage}
+
+## Giorno 2 - sommario
 
 -   Metodi deterministici di stima per interpolazione spaziale (IWD ed
     altri) - approfondimenti
@@ -789,7 +794,7 @@ Bayesiana di maggiore probabilità (zona grigia nella figura)
 
 $$ Z(s)=m(s)+ε(s) $$
 
--    $Z(s)$ = valore della variabile al punto $s$
+-   $Z(s)$ = valore della variabile al punto $s$
 
 -   $m(s)$ = **trend/mean** (parte “deterministica”, modellata da
     costante, covariate o regressione)
@@ -798,19 +803,21 @@ $$ Z(s)=m(s)+ε(s) $$
 
 ### Che cos’è $\varepsilon(s)$ ?
 
--    È il **processo stocastico residuo** dopo aver tolto la media
+-   È il **processo stocastico residuo** dopo aver tolto la media
     (trend).
 
--    Ha queste proprietà statistiche:
+-   Ha queste proprietà statistiche:
 
-    1.   $\mathbb{E}[\varepsilon(s)] = 0$ (media nulla)
+```         
+1.   $\mathbb{E}[\varepsilon(s)] = 0$ (media nulla)
 
-    2.   La covarianza dipende solo dalla distanza fra punti
-        (stazionarietà di 2º ordine):\
-        $\text{Cov}(\varepsilon(s), \varepsilon(s+h)) = C(h)$
+2.   La covarianza dipende solo dalla distanza fra punti
+    (stazionarietà di 2º ordine):\
+    $\text{Cov}(\varepsilon(s), \varepsilon(s+h)) = C(h)$
 
-    3.  La sua variabilità è descritta dal **variogramma**:\
-        $\gamma(h) = \tfrac{1}{2}\mathbb{E}[(\varepsilon(s) - \varepsilon(s+h))^2]$
+3.  La sua variabilità è descritta dal **variogramma**:\
+    $\gamma(h) = \tfrac{1}{2}\mathbb{E}[(\varepsilon(s) - \varepsilon(s+h))^2]$
+```
 
 La media $m(s)$ può essere:
 
@@ -1032,12 +1039,12 @@ lzn.fit = fit.variogram(lzn.vgm, model = vgm(1, "Sph", 900, 1))
 plot(lzn.vgm, lzn.fit)
 ```
 
--    $Z(s_i)$ = valore osservato della variabile al punto $s_i$​.
+-   $Z(s_i)$ = valore osservato della variabile al punto $s_i$​.
 
 -   $Z(s_i+h)$ = valore osservato al punto separato da distanza (o lag o
     intervallo di distanza solitamente nel semivario) $h$​.
 
--    $N(h)$ = numero di coppie di punti che distano circa $h$​.
+-   $N(h)$ = numero di coppie di punti che distano circa $h$​.
 
 -   La differenza al quadrato $(Z(s_i) - Z(s_i+h))^2$ misura la
     dissimilarità tra i due punti
@@ -1146,7 +1153,8 @@ associazioni.
 
 ## Stazionarietà - variogramma
 
-Il variogramma può aiutare a decidere se il
+Il variogramma può aiutare a decidere se la variabile dipendente è
+stazionaria o meno.
 
 **Forma coerente:** La forma complessiva del variogramma (ad esempio,
 sferica, esponenziale) deve rimanere coerente in diverse parti dell'area
@@ -1158,14 +1166,7 @@ distanza.
 
 **Nessuna dipendenza dalla posizione:** Il variogramma non deve variare
 in modo significativo a seconda della posizione delle coppie di punti
-all'interno dell'area di studio.
-
-```{r}
-library(gstat)
-  
-```
-
-## Test di stazionarietà - variogramma (3)
+all'interno dell'area di studio.Test di stazionarietà - variogramma (3)
 
 Vedi portale interattivo [Geospatial
 App](https://www.cirgeo.unipd.it/app01/GeospatialApp/){target="_blank"}
@@ -1177,41 +1178,11 @@ variogramma.
 
 ```{r anisotropy }
  
+lzn.dir = variogram(log(zinc)~1, meuse, alpha = c(0, 45, 90, 135))
+lzndir.fit = vgm(.59, "Sph", 1200, .05, anis = c(45, .4))
+plot(lzn.dir, lzndir.fit, as.table = TRUE)
 
 ```
-
-## Rilassare le condizioni - **stazionarietà**
-
-Trend spaziale: Si introduce un trend deterministico per modellare
-variazioni sistematiche della media. E.g. Se troviamo delle covariate
-(e.g. quota che spiega la temperatura) possiamo inserirle nel modello
-per eliminarne gli effetti ed isolare unicamente l'effetto spaziale
-separandolo da quello di altre covariate.
-
-Covarianza locale: Si stimano parametri di covarianza diversi per
-diverse regioni dello spazio.
-
-Decomposizione della varianza: Si scompone la varianza in componenti
-stazionarie e non stazionarie.
-
-Applicazione di trasformazioni matematiche ai dati per renderli più
-stazionari (es. logaritmo, potenza).
-
-Modelli geostatistici più complessi che tengano conto della non
-stazionarietà (Kriging specifico).
-
-Analisi locale: Dividere lo spazio in sottoregioni più omogenee e
-analizzare separatamente il variogramma in ciascuna sottoregione
-
-## Rilassare le condizioni - **isotropia**
-
-Trasformare le coordinate e.g. Si ruota il sistema di riferimento in
-modo che gli assi coincidano con le direzioni principali di anisotropia.
-In questo modo, si può ottenere un variogramma più circolare nelle nuove
-coordinate.
-
-Utilizzare modelli di variogramma anisotropi più semplici, come quelli
-con un angolo di rotazione fisso o con un'anisotropia geometrica.
 
 ## Variabili regionalizzate
 
@@ -1241,42 +1212,114 @@ della griglia e le osservazioni siano distanziate in modo tale che tutte
 le distanze superino l'intervallo, il kriging produce la stessa stima
 della statistica classica, ovvero la media.
 
-## Finestra
+# Giorno 3 {.Section1 .titlepage}
 
-Quando si lavora con un set di punti, è necessario specificare la
-regione spaziale o la finestra in cui si analizza il modello.
-
-Nel modulo **spatstat**, la finestra di osservazione è una parte parte
-integrante del lavoro.
-
-Un modello serve per stimare valori della variabile di studio in punti
-dove non sono presenti osservazioni. Anche qualcosa di semplice come la
-stima della distribuzione a pattern (raggruppate, casuali o griglia)
-dipende dalla finestra di osservazione considerata.
-
-I risultati saranno diversi analizzando finestre diverse. Ad esempio,
-calcolando la finestra di osservazione mediante l'area convessa dei
-punti.
-
-Solitamente la finestra di osservazione è un rettangolo, quindi basta
-specificare le dimensioni x e y del rettangolo ed i vertici.
-
-Finestre di osservazione con una forma più complessa possono essere
-facilmente rappresentate in **spatstat**, come descritto di seguito. Per
-le situazioni in cui la finestra è davvero sconosciuta, **spatstat**
-inltre fornisce la funzione *ripras* per calcolare lo stimatore di
-Ripley-Rasson della finestra, data solo la posizione dei punti.
-
-## Giorno 3
+## Giorno 3 - sommario
 
 -   Variogramma sperimentale e modello di variogramma: range, sill e
     nugget - esercizi
 
 -   Studio variografico di una variabile georeferenziata
 
+    -   verifica stazionarietà e isotropia
+
 -   Predizione e varianza di kriging
 
 -   Esercizi con Kriging
+
+## Studio variografico
+
+Condizione di isotropia - verifica
+
+```{r}
+plot(variogram(log(zinc) ~ 1, meuse, alpha = c(0, 45,90, 135)))
+```
+
+## Studio variografico
+
+Scala e densità di campioni (vedi app online per simulare campionamenti)
+
+La distanza di **cutoff**, che è la distanza massima fino alla quale le
+coppie di punti vengono considerate, e il **width** è l’ampiezza
+dell’intervallo di distanza all’interno del quale le coppie di punti
+vengono mediate nei bin
+
+```{r}
+plot(variogram(log(zinc) ~ 1, meuse, cutoff = 2000, width = 50))
+```
+
+## Studio variografico
+
+Intervalli personalizzati
+
+```{r}
+v<-variogram(log(zinc) ~ 1, meuse, boundaries = c(0, 50,  100, seq(250, 1500, 250)))
+plot(v)
+```
+
+## Stimare il modello ed i parametri
+
+Gstat utilizza il metodo dei minimi quadrati per stimare i parametri di
+un modello che riteniamo possa essere adatto. Se i dati non sono
+coerenti con il modello, potrebbe dare una non-soluzione (singular fit)
+e non trovare i parametri del modello.
+
+```{r}
+ # show.vgms()
+# ?vgm
+v.fit <- fit.variogram(v, vgm(1, "Sph", 10, 1))
+```
+
+## Stimare il modello ed i parametri
+
+Se c'è anisotropia (l'autocorrelazione dipende dalla direzione oltre che
+dalla distanza reciproca) possiamo integrarlo nel modello imponendola
+
+```{r}
+v.dir <- variogram(log(zinc) ~ 1, meuse, alpha = (0:3) * 45)
+v.anis <- vgm(0.6, "Sph", 1600, 0.05, anis = c(45, 0.3))
+plot(v.dir, v.anis)
+v.fit <- fit.variogram(v.dir, v.anis)
+plot(v.dir, v.fit)
+
+```
+
+## Anisotropia - stima direzione
+
+```{r}
+plot(variogram(log(zinc) ~ 1, meuse, map = TRUE, cutoff = 1000,  width = 100))
+```
+
+## Interpolazione kriging
+
+Una volta trovato il modello adatto possiamo usarlo per l'interpolatore
+usando la componente stocastica - ad esempio usiamo il modello che tiene
+in considerazione la leggera anisotropia dei nostri dati.
+
+```{r}
+
+v.dir <- variogram(log(zinc) ~ 1, meuse, alpha = (0:3) * 45)
+v.anis <- vgm(0.6, "Sph", 1600, 0.05, anis = c(45, 0.3))
+v.fit <- fit.variogram(v.dir, v.anis)
+lz.sk <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit, beta = 5.9)
+plot(lz.sk)
+```
+
+## Interpolazione kriging - esercizio
+
+Provate ad applicare la stessa cosa ad una variabile differente ed ad
+utilizzare TERRA per creare i due plot.
+
+```{r}
+v.dir2 <- variogram(log(copper) ~ 1, meuse, alpha = (0:3) * 45)
+v.anis <- vgm(0.6, "Sph", 1600, 0.05, anis = c(45, 0.3))
+v.fit <- fit.variogram(v.dir2, v.anis)
+plot(v.dir2,  v.fit)
+lz.sk.cu <- krige(log(copper) ~ 1, meuse, meuse.grid, v.fit, beta = 5.9)
+plot(terra::rast(lz.sk.cu), main="Rame" )
+plot(terra::rast(lz.sk), main="Zinco" )
+
+```
 
 ## Kriging: tipologie
 
@@ -1292,26 +1335,25 @@ Una variabile sola considerata o con multivariata (co-kriging)
 -   **Universal K** - si presuppone una media ignota non costante ma con
     un trend lineare
 
-![gstat albero decisionale (Applied Spatial Data Analysis with R,
-2013)](images/clipboard-1965914475.png)
+![](images/clipboard-1448665520.png)
 
 # TECNICHE DI KRIGING - Diversi Kriging {.Section1 .titlepage}
 
-## Ordinary & Simple Kriging (OK)
+## Simple Kriging (SK)
 
-Ordinary: Assume che la media della variabile regionalizzata sia
-sconosciuta e costante. Ampiamente utilizzato per la maggior parte delle
-applicazioni. Fornisce stime e i relativi errori Si applica nel caso di
-funzioni aleatorie stazionarie, ossia nel caso in cui la media dei
-residui sia costante in tutto il dominio di studio (stazionarietà!)
-
-Simple: Presuppone che la media della variabile regionalizzata sia nota.
+Presuppone che la media della variabile regionalizzata sia nota.
 Richiede una conoscenza accurata della media. Si applica nel caso di
 funzioni aleatorie stazionarie con media dei residui costante e nota.
 Necessita di un elevato numero di dati misurati.
 
-[E’ più preciso del KO *nel caso di un elevato numero di
-misurazioni.*]{.underline}
+## Ordinary Kriging (OK)
+
+Assume che la media della variabile regionalizzata sia sconosciuta e
+costante. Ampiamente utilizzato per la maggior parte delle applicazioni
+**dove non c'è trend**. Fornisce stime e i relativi errori Si applica
+nel caso di funzioni aleatorie stazionarie, ossia nel caso in cui la
+media dei residui sia costante in tutto il dominio di studio
+(stazionarietà!)
 
 ## Universal Kriging (UK)
 
@@ -1333,8 +1375,27 @@ dominio come la sovrapposizione di due componenti:
 $$Z(x) = Y(x) + m(x)$$
 
 Se il residuo Y(x) è una funzione stazionaria e non è correlata al trend
-allora è possibile applic are la procedura di Kriging al residuo e
-quindi effettuare lo Universal Kriging (UK).
+allora è possibile applicare la procedura di Kriging al residuo e quindi
+effettuare lo Universal Kriging (UK).
+
+## Esercizio SK, OK, UK
+
+Provate a cambiare alcuni parametri e visualizzare il risultato
+
+```{r}
+mean(log(meuse$zinc))
+lz.sk <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit, beta = 5.9)
+# spplot(lz.sk)
+lz.ok <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit) 
+# spplot(lz.ok)
+
+f <- log(zinc) ~ sqrt(dist)
+vt <- variogram(f, meuse)
+vt.fit <- fit.variogram(vt, vgm(1, "Exp", 300, 1))
+
+lz.uk <- krige(log(zinc) ~ sqrt(dist), meuse, meuse.grid,  vt.fit)
+spplot(lz.uk)
+```
 
 ## Co-Kriging (CK)
 
@@ -1508,3 +1569,17 @@ I risultati possono risultare carenti quando:
 
 **non limitarsi solo a fornire delle “mappe”, ma indicare tutte le
 valutazioni che le hanno prodotte oltre all’incertezza dei risultati.**
+
+## Esercizio finale
+
+Esegui un'interpolazione con IDW ed una usando il kriging
+
+## Prossimo corso...
+
+-   applicazioni dei vari kriging su dataset differente e più complessi
+
+-   co-variogrammi e co-kriging per appaiare più covariate
+
+-   metodi di validazioni rigorose
+
+-   ...

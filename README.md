@@ -6,4 +6,6 @@
 
 ## Modulo 1
 
-[Materiale - HTML](modulo1.html) [Materiale - PDF](modulo1.pdf)
+[Materiale - HTML](modulo1.html)
+
+[Materiale - PDF](modulo1.pdf)

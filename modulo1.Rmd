@@ -3,14 +3,7 @@ title: "ANALISI GEOSTATISTICA DEI DATI AMBIENTALI – Livello base (T28_25_3_1)"
 author: "Francesco Pirotti"
 date: "`r Sys.Date()`"
 output:
-  pdf_document:
-    toc: true
-    number_sections: true
-    toc_depth: 3
-    fig_width: 6
-    fig_height: 4
-  beamer_presentation: default
-  html_document:
+  html_notebook:
     toc: true
     toc_depth: 2
     toc_float:
@@ -21,6 +14,17 @@ output:
     fig_height: 4
     footer: 2025, Prof. Francesco Pirotti
     css: style.css
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+  pdf_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    fig_caption: yes
 papersize: a4
 classoption: a4paper
 editor_options:
@@ -29,7 +33,7 @@ editor_options:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, fig.pos="H") 
 library(tidyverse) 
 library(stats)
 library(ggplot2)
@@ -38,6 +42,17 @@ library(gstat)
 library(sp)
 library(kableExtra)
 suppressMessages(library(sjPlot))
+```
+
+```{=html}
+<style>
+#toc, #TOC {
+  width: 500px !important;
+}
+#notebook-container {
+  margin-left: 20px !important;
+}
+</style>
 ```
 
 ## Riferimenti utili
@@ -104,7 +119,9 @@ geostatistica.
 CIRGEO](images/clipboard-658366646.png)
 :::
 
-## Giorno 1
+# Giorno 1
+
+## Contenuti
 
 -   Richiamo concetti statistici fondamentali: varianza, covarianza,
     correlazione, autocorrelazione
@@ -116,8 +133,6 @@ CIRGEO](images/clipboard-658366646.png)
     regionalizzate
 
 -   Metodi deterministici di stima per interpolazione spaziale (IWD)
-
-# Richiamo concetti statistici fondamentali: varianza, covarianza, correlazione, autocorrelazione
 
 ## Varianza
 
@@ -216,8 +231,6 @@ points(lat_seq, temps, pch = 16, col = rgb(0,0,1,0.3))
 
 ```
 
-## Covarianza
-
 La covarianza equivale alla varianza se la calcoliamo confrontandola a
 se stessa, ma se trasliamo di un dato intervallo ("lag") e la
 ricalcoliamo, la covarianza non diventa zero, diminuisce
@@ -237,8 +250,6 @@ cov(temps[3:200],temps[1:198])
 
 Questo è un concetto molto importante da comprendere.
 
-## Covarianza {#covarianza-3}
-
 Più aumentiamo la distanza del lag, come è ragionevole pensare per dati
 spazialmente correlati, più diminuisce il valore di covarianza (si
 allontana dal valore della varianza == covarianza ).
@@ -257,8 +268,6 @@ points(temps[1:198], temps[3:200], pch="x", cex=0.5, col="green" )
  
 
 ```
-
-## Covarianza {#covarianza-4}
 
 Non ci crediamo? Rifacciamolo per un dato casuale con media e varianza
 uguale a quella del nostro dato:
@@ -322,7 +331,10 @@ acf() in R ti mostra l’autocorrelazione ai vari lag (sfasamenti).
 acf(temps, main = "Autocorrelazione della temperatura")
 ```
 
-# Richiamo concetti base su sistemi di riferimento coordinate (CRS), geografiche e proiettate
+# Sistemi di riferimento
+
+Richiamo concetti base su sistemi di riferimento coordinate (CRS),
+geografiche e proiettate
 
 ## Cosa sono i dati spaziali?
 
@@ -366,8 +378,6 @@ spaziale.
 ![fonte: appunti GIS Prof. Alberto
 Guarnieri](images/clipboard-3919052629.png)
 :::
-
-## Modello raster
 
 Può essere 3D (voxel)
 
@@ -478,7 +488,10 @@ geocentric = st_coordinates(pt_ecef)
 
 ```
 
-# Fondamenti statistici dell’analisi spaziale dati e variabili regionalizzate
+## Fondamenti statistici
+
+Fondamenti statistici dell’analisi spaziale dati e variabili
+regionalizzate
 
 ## Variabili regionalizzate
 
@@ -501,8 +514,6 @@ Vedi slides iniziali
     osservazioni (non lo trattiamo)
 
 -   Differenze tra dati indipendenti e dati spazialmente correlati
-
-# Metodi deterministici di stima per interpolazione spaziale {.Section1 .titlepage}
 
 ## Metodi deterministici vs stocastici
 
@@ -596,7 +607,9 @@ spplot(zinc.idw["var1.pred"], main = "Interpolazione IDW concentrazione Zinco")
 
 ```
 
-## Esportiamo su raster GeoTIFF per GIS
+## Terra package
+
+Terra package per disegnare il risultato IDW
 
 La libreria terra riconosce l'oggetto "sp" - posso aprirlo con qualsiasi
 sofware GIS! Nota: non vengono specificati sistemi di riferimento.
@@ -607,10 +620,14 @@ plot(zinc.idw.terra, main="Mappa Concentrazione Zinco")
 # terra::writeRaster(zinc.idw.terra, "zincIDW.tif")
 ```
 
-## Esportiamo su raster GeoTIFF per GIS
+## Esportiamo
+
+Esportiamo raster GeoTIFF per GIS
 
 Conoscendo l'area, vicino a Maastricht - Paesi Bassi - applichiamo un SR
-probabile e verifichiamo aprendo in GIS
+probabile e verifichiamo aprendo in GIS il raster salvato come GeoTIFF
+dopo aver assegnato il[sistema di riferimento
+EPSG:28992](https://epsg.io/28992)
 
 ```{r}
 
@@ -620,7 +637,7 @@ terra::crs(zinc.idw.terra) <- "EPSG:28992"
 
 ![](images/clipboard-3273472420.png)
 
-## Esercizio finale giorno 1
+## Esercizio giorno 1
 
 Eseguite la procedura sopra per interpolare la variabile "lead"
 (piombo). Salvate il GeoTIFF con il sistema di riferimento corretto
@@ -630,7 +647,7 @@ dentro la cartella "giorno1" nominando il file cognome_nome.tif
 
 # Giorno 2 {.Section1 .titlepage}
 
-## Giorno 2 - sommario
+## Contenuti
 
 -   Metodi deterministici di stima per interpolazione spaziale (IWD ed
     altri) - approfondimenti
@@ -660,7 +677,7 @@ meuse.grid.terra <- terra::rast(meuse.grid)
 # plot(meuse.grid.terra) 
 ```
 
-## Conversione tra oggetti per IDW et al.
+## Conversione tra oggetti
 
 Fondamentalmente gli interpolatori sono stimatori/predittori di valori
 della variabile dipendente in punti geolocalizzati. IDW se usata con
@@ -705,7 +722,7 @@ Stars può essere usata come input per interpolatori IDW KRIGING etc...
 *Terra* consente di usare funzioni utili come *click* (vedi slide
 successiva)
 
-## Stimare il valore in una posizione
+## Stima il valore in una posizione
 
 Definiamo una o più coordinate dal grafico fatto con *terra*, e la
 usiamo come input alla funzione *idw -* **NB** la funzione *click* usa
@@ -726,7 +743,7 @@ message("codice commentato da fare in autonomia in quanto richiede interazione m
 # print(zinc.idw.punto)
 ```
 
-## Stimare il valore in una posizione - esercizi
+## Esercizio interattivo
 
 Attenzione - solo elementi "terra" vengono correttamente identificati
 con la funzione click
@@ -752,8 +769,6 @@ plot(meuse$dist, meuse$zinc)
 # plot(zinc~dist, meuse)
 ```
 
-## IDW con covariate
-
 Non è lineare ma possiamo trasformare i valori in log e radice quadrata
 
 ```{r }
@@ -762,8 +777,6 @@ abline(lm(log(zinc)~sqrt(dist), meuse))
 cor.zinc.dist <- cor(log(meuse$zinc),sqrt(meuse$dist))
 mtext(paste("R=", round(cor.zinc.dist, 3)), side = 3)
 ```
-
-## IDW con covariate
 
 Siccome questa informazione è implicitamente presente, dato che ho
 potenzialmente la posizione dei fiumi e dunque la distanza da essi,
@@ -802,7 +815,7 @@ $$ Z(s)=m(s)+\epsilon(s) $$
 
 -   $\varepsilon(s)$ = **componente spaziale**, parte aleatoria
 
-### Che cos’è $\varepsilon(s)$ ?
+Che cos’è $\varepsilon(s)$ ?
 
 -   È il **processo stocastico residuo** dopo aver tolto la media
     (trend).
@@ -859,8 +872,6 @@ consentono di allentare la forma più rigorosa di ciascuno di questi
 presupposti. Tuttavia, nella realtà, queste condizioni sono spesso
 violate, rendendo necessario adottare approcci più flessibili.
 
-## Stazionarietà e isotropia
-
 1.  Stazionarietà "formale": le proprietà statistiche (media e varianza)
     del processo spaziale rimangono costanti **in tutte le località**.
     La distribuzione di probabilità congiunta non varia nello spazio di
@@ -878,8 +889,6 @@ la varianza delle differenze tra i valori misurati in quei due punti.
 Solitamente si usa il SEMIvariogramma, ovvero la semivarianza, i.e. metà
 della media di tutte le differenze tra valori di punti che si trovano
 entro una certa distanza reciproca.
-
-## Stazionarietà e isotropia
 
 3.  Isotropia: l'autocorrelazione spaziale tra le risposte in 2 siti
     dipende solo dalla distanza e non dalla direzione o
@@ -953,7 +962,7 @@ Metodi per valutare il grado di stazionarietà:
     -   Considerare l'adattamento di diversi modelli di variogramma per
         valutare la loro aderenza.
 
-## Stazionarietà: Considerazioni importanti
+## Stazionarietà: Considerazioni
 
 -   **La stazionarietà è spesso un'approssimazione:** In pratica, spesso
     si assume una stazionarietà approssimativa per applicare i metodi
@@ -971,7 +980,7 @@ Metodi per valutare il grado di stazionarietà:
 di dubbio, ma valutare la sua plausibilità e prendere decisioni
 informate sull'adeguatezza dei metodi geostatistici
 
-## Test di stazionarietà - variogramma
+## Test di stazionarietà
 
 Insomma... i miei dati 2D soddisfano il presupposto di stazionarietà o
 no? O almeno quanto sono lontani da una perfetta stazionarietà?
@@ -986,7 +995,7 @@ scala deve basarsi sul problema specifico.
 Per indagare/valutare la stazionarietà dei dati spaziali, in pratica la
 cosa migliore è usare un **variogramma o un autocorrelogramma**: - nel
 primo caso è un grafico che mostra come cambia il valore la covarianza a
-diversi lag.
+diversi lag ovvero a diverse distanze reciproche tra punti.
 
 ## Variogramma {#variogramma}
 
@@ -1019,14 +1028,11 @@ $$
 -   Serve a mantenere la relazione con la **varianza**:\
     quando $h→\infty$, la semivarianza tende alla **varianza della
     variabile** (non al doppio!)
-
-<!-- -->
-
 -   In pratica il fattore $\frac{1}{2}$ è una convenzione che garantisce
     che il semivariogramma sia coerente con le proprietà statistiche del
     processo.
 
-## Semivarianza formula empirica
+## Semivarianza formula
 
 $$
 \hat{\gamma}(h) = \frac{1}{2N(h)} \sum_{i=1}^{N(h)} \Big( Z(s_i) - Z(s_i+h) \Big)^2
@@ -1091,12 +1097,12 @@ Se il variogramma non è delimitato (non raggiunge un massimo) non c'è
 E' la varianza indipendente dall'autocorrelazione spaziale. Ad esempio
 dovuta agli errori di misura.
 
-## Semivariogramma - cloud vs. plot
+## cloud vs. plot
 
 ![Fonte: Dr. Gaufeng Cao - University of Colorado
-Boulder](images/clipboard-1990818548.png)
+Boulder](images/clipboard-1990818548.png){width="625"}
 
-## Semivariogramma- esercizio interattivo
+## Esercizio interattivo
 
 ```{r eval=FALSE}
 lzn.vgm = variogram(log(zinc)~1, meuse, cloud=TRUE)
@@ -1118,28 +1124,36 @@ plot(plot(lzn.vgm, identify = TRUE), meuse)
 
 ## Semivariogramma - esempi 1
 
+Tipico di quota, temperatura...
+
 ![Fonte: Dr. Gaufeng Cao - University of Colorado
 Boulder](images/clipboard-3595471897.png)
 
 ## Semivariogramma - esempi 2
+
+Tipico di concentrazioni di minerali
 
 ![Fonte: Dr. Gaufeng Cao - University of Colorado
 Boulder](images/clipboard-1802194980.png)
 
 ## Semivariogramma - esempi 3
 
+Tipico di valori di precipitazione
+
 ![Fonte: Dr. Gaufeng Cao - University of Colorado
 Boulder](images/clipboard-806171150.png)
 
 ## Semivariogramma - esempi 4
+
+Fenomeni che oscillano nell'area
 
 ![Fonte: Dr. Gaufeng Cao - University of Colorado
 Boulder](images/clipboard-3963613121.png)
 
 ## Autocorrelogramma
 
-Nel secondo caso è un grafico che mostra l'autocorrelazione dei valori
-dei dati a diversi lag (spaziali o temporali).
+E' un grafico che mostra l'autocorrelazione dei valori dei dati a
+diversi lag (spaziali o temporali).
 
 Si vuole studiare l'associazione tra le osservazioni della variabile
 analizzata in funzione di distanza e direzione. Le funzioni di
@@ -1211,7 +1225,7 @@ della statistica classica, ovvero la media.
 
 # Giorno 3 {.Section1 .titlepage}
 
-## Giorno 3 - sommario
+## Contenuti
 
 -   Variogramma sperimentale e modello di variogramma: range, sill e
     nugget - esercizi
@@ -1268,7 +1282,7 @@ coerenti con il modello, potrebbe dare una non-soluzione (singular fit)
 e non trovare i parametri del modello.
 
 Esercizio - fornite voi a mano un sill, nugget e range (vedi
-documentazione vgm e [Variogramma])
+documentazione vgm e [Variogramma](#variogramma))
 
 ```{r}
  # show.vgms()
@@ -1570,7 +1584,7 @@ rk$pred <- rk$var1.pred + predict(lm_fit, meuse.grid@data)
 4.  La previsione finale è la somma del valore previsto dal modello di
     regressione e del residuo previsto dal kriging.
 
-## Differenze chiave  RK rispetto ad altri metodi:
+## Differenze chiave RK rispetto ad altri metodi:
 
 -   **Combina regressione e kriging:** Questo approccio ibrido sfrutta i
     punti di forza di entrambi i metodi.
@@ -1655,7 +1669,11 @@ valutazioni che le hanno prodotte oltre all’incertezza dei risultati.**
 
 ## Esercizio finale
 
-Esegui un'interpolazione con IDW ed una usando il kriging
+Esegui un'interpolazione con IDW (già fatta nel giorno 1 vedi [Esercizio
+finale giorno 1]) ed una usando il kriging UK usando sqrt(dist) come
+covariata - consegnare il raster usando TERRA per salvare come raster
+GeoTIFF, includendo il sistema di riferimento corretto (vedi [Esportiamo
+raster GeoTIFF per GIS] ), come [Esercizio finale giorno 1]
 
 ## Prossimo corso...
 

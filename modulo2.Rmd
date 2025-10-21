@@ -1,0 +1,214 @@
+---
+title: "ANALISI GEOSTATISTICA DEI DATI AMBIENTALI – Livello intermedio (T28_25_3_2)"
+author: "Francesco Pirotti"
+date: "`r Sys.Date()`"
+output:
+  html_notebook:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+  slidy_presentation:
+    fig_width: 6
+    fig_height: 4
+    footer: 2025, Prof. Francesco Pirotti
+    css: style.css
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float:
+      collapsed: true
+      smooth_scroll: false
+  pdf_document:
+    toc: true
+    number_sections: true
+    toc_depth: 2
+    fig_caption: yes
+papersize: a4
+classoption: a4paper
+editor_options:
+  markdown:
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.pos="H") 
+library(tidyverse) 
+library(stats)
+library(ggplot2)
+library(terra)
+library(gstat)
+library(sp)
+library(kableExtra)
+suppressMessages(library(sjPlot))
+```
+
+```{=html}
+<style>
+#toc, #TOC {
+  width: 500px !important;
+}
+#notebook-container {
+  margin-left: 20px !important;
+}
+</style>
+```
+
+## Riferimenti utili
+
+CRS - coordinate reference system\
+<https://r.geocompx.org/spatial-class#crs-intro>\
+<https://r-spatial.org/book/02-Spaces.html#sec-crs>\
+\
+meuse dataset\
+<https://cloud.r-project.org/web/packages/gstat/vignettes/gstat.pdf>
+
+veneto dataset\
+in cartella "dati"\
+\
+metodi di interpolazione geografica\
+<https://r-spatial.org/book/12-Interpolation.html>
+
+Applied Spatial Data Analysis with R
+<https://gis.humboldt.edu/OLM/r/Spatial%20Analysis%20With%20R.pdf>
+
+## Obiettivo
+
+### Lezione 1 (3 ore) — Introduzione, autocorrelazione e variogramma
+
+-   Richiamo sulle statistiche descrittive, distribuzioni,
+    trasformazioni, sistemi di riferimenti
+
+-   Richiamo geostatistica: variabili regionalizzate, autocorrelazione
+    spaziale, perché non basta “interpolare come se niente fosse”.
+    [[LINK]{.underline}](https://www.uwyo.edu/geolgeophys/people/faculty/yzhang/_files/docs/geosta1.pdf?utm_source=chatgpt.com){alt="https://www.uwyo.edu/geolgeophys/people/faculty/yzhang/_files/docs/geosta1.pdf?utm_source=chatgpt.com"}
+
+-   Il variogramma: definizione, semivarianza, sperimentale vs modello,
+    legame con la continuità spaziale.
+
+**Parte pratica (\~90 min):**
+
+-   Caricamento di un dataset ambientale (es. concentrazioni suolo,
+    misure vegetazione, temperatura)
+
+-   Esplorazione spaziale: mappe puntuali, geolocalizzazione, scatter
+    plot, istogrammi
+
+-   Calcolo dell’autocorrelazione (es. indice di Moran) e del
+    variogramma sperimentale
+
+-   Discussione: “Cosa ci dice il variogramma? Quali sono i punti deboli
+    (campionamento, anisotropia, non stazionarietà)?”
+
+**Riassunto (\~30 min):**
+
+-   Assegnazione di un mini esercizio da consegnare (es. “ottenere il
+    variogramma per una variabile ambientale e provare a modellarlo”)
+
+-   Discussione aperta su cosa ci si aspetta in diversi ambiti (foreste,
+    suolo, microclima, ecc)
+
+### Lezione 2 (3h) — Interpolazione (kriging) e stima spaziale
+
+**Parte teorica (\~1 ora):**
+
+-   Principi del kriging: stimatore lineare, migliori pesi,
+    interpretazione dell’errore di stima. [[University of
+    Adelaide]{.underline}](https://www.adelaide.edu.au/course-outlines/103196/1/summer/2019/?utm_source=chatgpt.com){alt="https://www.adelaide.edu.au/course-outlines/103196/1/summer/2019/?utm_source=chatgpt.com"}
+
+-   Varianti: kriging ordinario, kriging universale, co-kriging (se
+    tempo/gradimento)
+
+-   Limiti e assunti: stazionarietà, direzionalità (anisotropia),
+    campionamento, densità dati
+
+**Parte pratica (\~1.5 ore):**
+
+-   
+
+-   Utilizzo del variogramma modellato per effettuare una stima spaziale
+    (kriging ordinario)
+
+-   Mappatura della stima, della varianza di stima
+
+-   Esperimento “what-if”: ridurre i dati campionati, vedere come cambia
+    la stima
+
+-   (Opzionale) Introduzione rapida al co-kriging se disponete di una
+    seconda variabile correlata
+
+**Riassunto (\~30 min):**
+
+-   Homework: applicare il kriging su un dataset ambientale differente,
+    includendo mappa + varianza + breve interpretazione
+
+### Lezione 3 (3 ore ) — Simulazione, valutazione dell’incertezza e applicazioni avanzate
+
+**Parte teorica (\~40 min):**
+
+-   Simulazione geostatistica: differenza tra stima (una mappa “best
+    guess”) e simulazione (mappe multiple per valutare l’incertezza).
+    [[uwyo.edu+1]{.underline}](https://www.uwyo.edu/geolgeophys/people/faculty/yzhang/_files/docs/geosta1.pdf?utm_source=chatgpt.com){alt="https://www.uwyo.edu/geolgeophys/people/faculty/yzhang/_files/docs/geosta1.pdf?utm_source=chatgpt.com"}
+
+-   Introduzione ad alcune applicazioni ambientali specifiche:
+    contaminazione del suolo, monitoraggio forestale, qualità dell’aria,
+    etc.
+
+-   Discussione sulle sfide avanzate: anisotropia, non-stazionarietà,
+    grande quantità di dati spaziali, software geostatistici
+
+**Parte pratica (\~110 min):**
+
+-   Realizzare una simulazione (ad esempio sequenziale gaussiana) sul
+    dataset usato, generando più realizzazioni spaziali
+
+-   Comparare mappe, calcolare statistiche dell’incertezza (es.
+    deviazione standard spaziale)
+
+-   Realizzare un “mini-case” applicativo: selezionare un’area del
+    dataset, interpretare cosa significa la varianza/spread nella mappa
+    per decisioni ambientali (ad es. dove monitorare di più, dove
+    intervenire)
+
+-   Discussione critica: “Ok, ho la mappa, ora che faccio? Quali errori
+    devo evitare? Quali assunti ho violato?”
+
+**Wrap-up (\~10 min):**
+
+-   Sintesi delle tre lezioni, punti chiave da portare avanti
+
+-   Discussione su possibili progetti futuri, integrazione con altri
+    moduli del corso, uso in ricerca/foreste/geomatica
+
+-   Feedback rapido dagli studenti: cosa è stato utile, cosa vorrebbero
+    approfondire
+
+## Dati di esempio
+
+Useremo il dataset "meuse" e le librerie che vedete sotto
+
+```{r}
+library(tidyverse) 
+library(stats)
+library(ggplot2)
+library(terra)
+library(gstat) 
+library(kableExtra)
+library(sp)
+data(meuse)
+class(meuse)
+
+kable(head(meuse, 5), caption = "Dataset *meuse*") %>%
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+```
+
+## Prossimo corso...
+
+-   applicazioni dei vari kriging su dataset differente e più complessi
+
+-   co-variogrammi e co-kriging per appaiare più covariate
+
+-   metodi di validazioni rigorose
+
+-   ...

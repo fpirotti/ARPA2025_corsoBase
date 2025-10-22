@@ -3,7 +3,7 @@ title: "ANALISI GEOSTATISTICA DEI DATI AMBIENTALI – Livello intermedio (T28_25
 author: "Francesco Pirotti"
 date: "`r Sys.Date()`"
 output:
-  html_document:
+  html_notebook:
     toc: true
     toc_depth: 2
     toc_float:
@@ -14,7 +14,7 @@ output:
     fig_height: 4
     footer: 2025, Prof. Francesco Pirotti
     css: style.css
-  html_notebook:
+  html_document:
     toc: true
     toc_depth: 2
     toc_float:

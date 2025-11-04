@@ -118,39 +118,17 @@ Ripasso, analisi esplorativa dei dati per verifiche presupposti
 
 ## Giornata 2
 
-Interpolazione (kriging) e stima spaziale
+-   Calcolo dell’autocorrelazione (es. indice di Moran) e del
+    variogramma sperimentale - dati del veneto - esercizio da consegnare
 
-<!-- **Parte teorica (\~1 ora):** -->
+-   Discussione: “Cosa ci dice il variogramma? Quali sono i punti deboli
+    (campionamento, anisotropia, non stazionarietà)?”
 
-<!-- -   Principi del kriging: stimatore lineare, migliori pesi, -->
+-   Interpolazione (kriging) e stima spaziale - cokriging, block
+    kriging, collocated kriging, global vs local kriging, indicator
+    kriging
 
-<!--     interpretazione dell’errore di stima. -->
-
-<!-- -   Varianti: kriging ordinario, kriging universale, co-kriging e altre -->
-
-<!-- -   Limiti e assunti: stazionarietà, direzionalità (anisotropia), -->
-
-<!--     campionamento, densità dati -->
-
-<!-- **Parte pratica (\~1.5 ore):** -->
-
-<!-- -   Utilizzo del variogramma modellato per effettuare una stima spaziale -->
-
-<!--     (kriging ordinario) -->
-
-<!-- -   Mappatura della stima, della varianza di stima -->
-
-<!-- -   Esperimento “what-if”: ridurre i dati campionati, vedere come cambia -->
-
-<!--     la stima -->
-
-<!-- -   il co-kriging se disponete di una seconda variabile correlata -->
-
-<!-- **Riassunto (\~30 min):** -->
-
-<!-- -   Homework: applicare il kriging su un dataset ambientale differente, -->
-
-<!--     includendo mappa + varianza + breve interpretazione -->
+-   
 
 ## Giornata 3
 
@@ -212,7 +190,8 @@ kable(head(meuse, 5), caption = "Dataset *meuse*") %>%
   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
 ```
 
-Esercizio: provate a replicare quanto sotto con il dataset "Veneto"
+Esercizio: provate a replicare quanto sotto con il dataset "Veneto" che
+trovate nel file CSV
 
 ```{r}
 ## pg 192 del testo
@@ -265,20 +244,60 @@ meuse.tr2 <- krige(log(zinc) ~ 1, meuse, meuse.grid, degree = 2)
 lm(log(zinc) ~ I(x^2) + I(y^2) + I(x * y) + x + y, meuse)
 ```
 
-## Analisi Esplorativa del Variogramma
+## 
 
-C'è autocorrelazione?
+## Test autocorrelazione spaziale
+
+Vedi cap. 9.4 [Applied Spatial Data Analysis with
+R](https://gis.humboldt.edu/OLM/r/Spatial%20Analysis%20With%20R.pdf) -
+leggere attentamente per comprendere l'effetto di eventuali trend
+
+Funzione hscat indicando i lag... applicare al dato "veneto" - che lag
+mettiamo?
+
+Indice di Moran ci fornisce un test con significatività del risultato -
+attenzione, vedi sotto
 
 ```{r}
+
 hscat(log(zinc) ~ 1, meuse, (0:9) * 100)
-## oppure classico variogramma
- variogram(log(zinc) ~ 1, meuse, cloud = TRUE)
- 
+
+## ma come quantificare la correlazione spaziale? Indice di Moran - 
+library(spdep)
+nb <- dnearneigh(coordinates(meuse), 0, 3000)
+lw <- nb2listw(nb, style = "W")
+
+# Moran I 
+moran.test(log(meuse$zinc) , lw)
+## ma sui residui mi dice non significativo, mentre nel variogramma si: come mai?
+zn.lm <- lm(log(zinc) ~ sqrt(dist), meuse)
+meuse@data$residuals <- zn.lm$residuals
+moran.test(log(meuse$zinc) , lw)
+v <- variogram(residuals ~ 1, meuse)
+plot(v)
 ```
 
-## Modello del variogramma
+## Test tendenza
 
 ```{r}
+
+library(scatterplot3d)
+# Aggiusto un modello di un piano nello spazio 2d
+fit <- lm(meuse@data$zinc ~ meuse@coords[,1]+ meuse@coords[,2]) 
+scatplot<-scatterplot3d( meuse@coords[,1], meuse@coords[,2],
+                         meuse@data$zinc, main="3D Scatterplot")
+scatplot$plane3d(fit)
+```
+
+## Analisi Esplorativa del Variogramma
+
+### Modello del variogramma
+
+```{r}
+
+
+## oppure classico variogramma
+variogram(log(zinc) ~ 1, meuse, cloud = TRUE)
 ## library(geoR)
 v <- variogram(log(zinc) ~ 1, meuse)
 v.fit <- fit.variogram(v, vgm(1, "Sph", 800, 1))
@@ -294,16 +313,17 @@ v.anis <- vgm(0.6, "Sph", 1600, 0.05, anis = c(45, 0.3))
 plot(v.dir, v.anis)
 
 ## NB possiamo variare il passo nel variogramma e la distanza max, ma dipende da quanta densità abbiamo di campionamento
- # plot(variogram(log(zinc) ~ 1, meuse, map = TRUE, cutoff = 1000, width = 100))
+# plot(variogram(log(zinc) ~ 1, meuse, map = TRUE, cutoff = 1000, width = 100))
 ```
 
 ## Modelli Multivariati - co-kriging
 
 I modelli multivariati considerano più variabili dipendenti, ovvero
 variabili coregionalizzate (o coregionalized variables) che sono
-variabili che vengono analizzate congiuntamente, perché correlate tra
-loro nello spazio. L’idea è che una variabile possa “aiutare” a stimare
-un’altra, se condividono una struttura di dipendenza spaziale.
+variabili che vengono analizzate congiuntamente, perché [correlate tra
+loro nello spazio]{.underline}. L’idea è che una variabile possa
+“aiutare” a stimare un’altra, se condividono una struttura di dipendenza
+spaziale.
 
 ```{r}
 ## c'è correlazione?
@@ -353,6 +373,171 @@ lz.uk <- krige(log(zinc) ~ sqrt(dist), meuse, meuse.grid, vt.fit)
 ### Cokriging - modelli su multivariate
 
 ```{r}
+# vm.fit è l'oggetto GSAT utilizzato prima
  cok.maps <- predict(vm.fit, meuse.grid)
  spplot.vcov(cok.maps)
+```
+
+## Collocated Cokriging
+
+Due condizioni differenti quando abbiamo una variabile indipendente
+disponibile sia nei punti campione sia nei punti che vogliamo stimare
+(la griglia). Come nel caso della distanza dai corsi d'acqua nel caso
+Meuse
+
+```{r}
+#Crea un oggetto gstat per log(zinc) nel dataset meuse.
+g.cc <- gstat(NULL, "log.zinc", log(zinc) ~ 1, meuse, model = v.fit)
+# v.fit è il modello di variogramma per log(zinc) usato prima. 
+# ~1 indica kriging ordinario / media costante. 
+# A questo punto hai un modello geostatistico univariato
+meuse.grid$distn <- meuse.grid$dist - mean(meuse.grid$dist) + mean(log(meuse$zinc))
+# Crea una nuova variabile distn sulla griglia di predizione.
+# È centrata e scalata per avere la stessa media di log(zinc).
+# L’idea: usare questa variabile come secondaria nel cokriging
+
+########  # Adeguamento del variogramma per distn
+vd.fit <- v.fit 
+# Copia il variogramma originale v.fit.
+# Modifica il sill (psill) proporzionalmente al rapporto tra varianze della nuova variabile e dello zinco.
+# Questo genera un variogramma sintetico per distn coerente con log(zinc).
+vov <- var(meuse.grid$distn)/var(log(meuse$zinc))
+vd.fit$psill <- v.fit$psill * vov
+
+# Aggiunge distn come nuova variabile gstat
+g.cc <- gstat(g.cc, "distn", distn ~ 1, meuse.grid, nmax = 1, model = vd.fit, merge = c("log.zinc", "distn"))
+# nmax = 1 significa considerare solo il vicino più prossimo per la variabile secondaria
+# merge = c("log.zinc", "distn") combina le strutture dati per il cokriging
+
+####### Variogramma incrociato per il cokriging
+vx.fit <- v.fit
+vx.fit$psill <- sqrt(v.fit$psill * vd.fit$psill) * cor(meuse$dist, log(meuse$zinc)) 
+g.cc <- gstat(g.cc, c("log.zinc", "distn"), model = vx.fit)
+x <- predict(g.cc, meuse.grid)
+# Costruisce il variogramma incrociato tra log.zinc e distn.
+# Questa è l’assunzione del modello lineare di coregionalizzazione (LMC).
+# Rappresenta la correlazione spaziale tra variabile primaria e secondaria.
+plot(x)
+```
+
+## Global vs local kriging
+
+Global kriging stima valori spaziali assumendo una struttura di
+covarianza su tutta l’area (trend globale), usa dunque tutte le
+osservazioni mentre local kriging adatta i pesi e la struttura di
+covarianza a vicinanze limitate, catturando variazioni spaziali locali.
+Globale può diventare pesante computazionalmente
+
+```{r}
+# Local kriging: nmax = numero massimo di vicini considerati
+# Qui consideriamo solo i 5 vicini più prossimi per ogni predizione
+lk <- gstat(NULL, "log.zinc", log(zinc) ~ 1, meuse, model=v.fit, nmax=5) 
+# Predizione
+pred <- predict(lk, meuse.grid) 
+# Plot
+spplot(pred, "log.zinc.pred", main="Local Ordinary Kriging (nmax=5)")
+```
+
+## Block kriging 
+
+Le osservazion $Z(s_i)$ sono considerate come misurate in punti
+specifici. Il kriging di un valore con dimensione fisica pari a quella
+delle osservazioni si chiama point kriging (kriging puntuale). Al
+contrario, il block kriging stima medie su aree o volumi più grandi.
+
+Il point kriging di solito mostra errori di stima più elevati. Questo
+avviene perché le osservazioni singole presentano maggiore variabilità.
+
+Quando invece si stimano medie su aree più estese (block kriging), gran
+parte della variabilità interna ai blocchi si media, e quindi le medie
+dei blocchi hanno errori di stima più bassi, pur mantenendo visibili i
+pattern spaziali, purché i blocchi non siano troppo grandi.
+
+```{r}
+ lz.ok <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit, block = c(40, 40))
+ plot(lz.ok)
+```
+
+## Kriging stratificato/indicator?
+
+Quando è disponibile una variabile categorica che suddivide l’area di
+interesse in un certo numero di aree disgiunte, ad esempio classi di uso
+del suolo o qualche altro fattore, potremmo voler applicare il kriging
+separatamente per le diverse classi. Questo approccio si chiama
+stratified kriging (kriging stratificato).
+
+Il motivo per applicare il kriging per classe è che la struttura di
+covarianza (semivariogramma) può essere diversa tra le classi. A
+differenza del universal kriging con un predittore categorico, in questo
+caso non si assume alcuna correlazione tra i residui delle diverse
+classi. Altro esempio: temperatura in zone urbane vs temperatura in zone
+non urbane
+
+```{r}
+library(sp)
+# Interpolazione iniziale della variabile categoriale part.a
+meuse$part.a <- idw(part.a ~ 1, meuse.grid, meuse, nmax = 1)$var1.pred
+# [interpolazione ponderata per distanza inversa]
+# Qui qualsiasi interpolazione va bene, perché stiamo praticamente usando
+# il **primo vicino più prossimo** come predittore.
+
+# Approccio più robusto: usare overlay per assegnare valori della griglia
+meuse$part.a <- over(meuse, meuse.grid)$part.a
+# Questo metodo ignora eventuali osservazioni non coperte dalla griglia.
+
+# Ora possiamo eseguire il kriging per ciascun sottodominio,
+# memorizzare i risultati in x1 e x2, e poi unirli con rbind
+# nella loro rappresentazione non spaziale.
+
+# Kriging ordinario per il primo sottodominio (part.a == 0)
+x1 <- krige(log(zinc) ~ 1,
+            meuse[meuse$part.a == 0, ],
+            meuse.grid[meuse.grid$part.a == 0, ],
+            model = vgm(0.548, "Sph", 900, 0.0654),
+            nmin = 20, nmax = 40, maxdist = 1000)
+# [usando kriging ordinario]
+
+# Kriging ordinario per il secondo sottodominio (part.a == 1)
+x2 <- krige(log(zinc) ~ 1,
+            meuse[meuse$part.a == 1, ],
+            meuse.grid[meuse.grid$part.a == 1, ],
+            model = vgm(0.716, "Sph", 900),
+            nmin = 20, nmax = 40, maxdist = 1000)
+# [usando kriging ordinario]
+
+# Unione dei risultati in un unico dataset
+lz.stk <- rbind(as.data.frame(x1), as.data.frame(x2))
+coordinates(lz.stk) <- c("x", "y")
+lz.stk <- as(lz.stk, "SpatialPixelsDataFrame")
+
+# Visualizzazione dei risultati di stratified kriging
+spplot(lz.stk["var1.pred"], main = "Predizioni con kriging stratificato")
+
+```
+
+```{r}
+library(sp)
+library(gstat)
+
+data(meuse)
+coordinates(meuse) <- ~x+y
+
+# Variogramma dei residui
+v <- variogram(log(zinc) ~ soil, meuse)
+v.fit <- fit.variogram(v, vgm(0.6, "Sph", 900, 0.1))
+
+# Universal kriging con soil come covariata
+g.uk <- gstat(formula = log(zinc) ~ soil, data = meuse, model = v.fit)
+
+# Griglia di predizione
+data(meuse.grid)
+coordinates(meuse.grid) <- ~x+y
+gridded(meuse.grid) <- TRUE
+
+# Predizione
+pred <- predict(g.uk, meuse.grid)
+
+# Plot
+spplot(pred["var1.pred"], main="Universal kriging con soil come covariata")
+
 ```

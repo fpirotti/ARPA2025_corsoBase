@@ -128,11 +128,20 @@ Ripasso, analisi esplorativa dei dati per verifiche presupposti
     kriging, collocated kriging, global vs local kriging, indicator
     kriging
 
--   
+-   Introduzione alla validazione
+
+**Riassunto (\~30 min):**
+
+-   Assegnazione di un esercizio da consegnare
+
+-   Discussione aperta su cosa ci si aspetta in diversi ambiti ARPA
+    (suolo, meteo, inquinamento, ecc)
 
 ## Giornata 3
 
-Simulazione, valutazione dell’incertezza e applicazioni avanzate
+-   Simulazioni (tipo Monte Carlo)
+
+-   valutazione dell’incertezza e applicazioni avanzate
 
 <!-- **Parte teorica (\~40 min):** -->
 
@@ -438,7 +447,7 @@ pred <- predict(lk, meuse.grid)
 spplot(pred, "log.zinc.pred", main="Local Ordinary Kriging (nmax=5)")
 ```
 
-## Block kriging 
+## Block kriging
 
 Le osservazion $Z(s_i)$ sono considerate come misurate in punti
 specifici. Il kriging di un valore con dimensione fisica pari a quella
@@ -515,6 +524,13 @@ spplot(lz.stk["var1.pred"], main = "Predizioni con kriging stratificato")
 
 ```
 
+## Kriging trend con variabile discreta
+
+Diverso da indicator kriging ... modella il trend come dipendente dalla
+categoria soil, e poi stima un **unico** variogramma dei residui;
+indicator kriging divide i variogrammi in funzione dei punti presenti
+per ogni classe.
+
 ```{r}
 library(sp)
 library(gstat)
@@ -538,6 +554,152 @@ gridded(meuse.grid) <- TRUE
 pred <- predict(g.uk, meuse.grid)
 
 # Plot
+# spplot(meuse.grid, c("soil"))
 spplot(pred["var1.pred"], main="Universal kriging con soil come covariata")
+spplot(pred["var1.var"], main="Universal kriging con soil come covariata Varianza")
+spplot(pred["var1.var"], main="Universal kriging con soil come covariata Varianza")
+
+```
+
+## Nota su interpretazione 
+
+A volte si trasforma la variabile dipendente con log o altro. Attenzione
+nel voler tornare alla scala lineare.
+
+```{r}
+library(gstat)
+library(sp)
+
+# modello in log
+v.fit <- variogram(log(zinc) ~ 1, meuse)
+v.fit <- fit.variogram(v.fit, vgm("Sph"))
+
+# kriging in scala log
+kr <- krige(log(zinc) ~ 1, meuse, meuse.grid, model = v.fit)
+
+# back-transform senza correzione (Sbagliato)
+kr$z_no_bias <- exp(kr$var1.pred)
+
+# back-transform con correzione (Corretto)
+kr$z_corretto <- exp(kr$var1.pred + kr$var1.var / 2)
+spplot(kr, c("z_no_bias", "z_corretto"))
+
+#anche la varianza!
+# calcolo della varianza back-transformata
+kr$z_var_corretta <- exp(2*kr$var1.pred + kr$var1.var) * (exp(kr$var1.var) - 1)
+
+# deviazione standard in scala originale
+kr$z_sd <- sqrt(kr$z_var_corretta) 
+
+spplot(kr, c("z_sd"))
+```
+
+## Validazione
+
+La varianza mi stima l'affidabilità, ma una vera validazione richiede di
+confrontare il risultato con dati oggettivi misurati. Unico modo è
+quello di separare il dataset in un set di misure da usare per il
+modello ed un set misure da usare per la validazione. Importante che i
+due set siano entrambi rappresentativi della distribuzione (non biased).
+
+*cross-validazione: leave-one-out o k-fold.*
+
+```{r}
+## attenzione che "leave-one-out" richiede molto tempo in quanto esegue krige tante volte quanti sono i punti!
+cv <- krige.cv(log(zinc) ~ 1, meuse, model = v.fit)
+```
+
+## Indicatori di accuratezza
+
+Alla fine devo avere degli indicatori per confrontare "quale metodo
+funziona meglio"
+
+```{r}
+# Errori:
+ME <- mean(cv$residual)
+RMSE <- sqrt(mean(cv$residual^2)) ### attenzione, NON sd(cv$residual)
+
+# Residui standardizzati
+MSDR <- mean(cv$zscore^2)
+
+results <- data.frame(ME, RMSE, MSDR)
+print(results)
+
+```
+
+## Confronto performance modelli diversi
+
+```{r}
+m1 <- krige.cv(log(zinc) ~ 1, meuse, model = v.fit)
+m2 <- krige.cv(log(zinc) ~ sqrt(dist), meuse, model = v.fit)
+m3 <- krige.cv(log(zinc) ~ soil, meuse, model = v.fit)
+
+compare <- data.frame(
+  Model = c("OK", "UK-dist", "UK-soil"),
+  ME = c(mean(m1$residual), mean(m2$residual), mean(m3$residual)),
+  RMSE = c(sqrt(mean(m1$residual^2)), sqrt(mean(m2$residual^2)), sqrt(mean(m3$residual^2))),
+  MSDR = c(mean(m1$zscore^2), mean(m2$zscore^2), mean(m3$zscore^2))
+)
+
+compare
+
+```
+
+## Mappa degli errori standardizzati
+
+```{r}
+cv_sp <- cv 
+#hist(cv@data$residual)
+spplot(cv_sp, "zscore",
+       col.regions = colorRampPalette(c("blue", "grey", "red"))(100),
+       at = seq(-4, 4, length = 100),
+       main = "Standardized residuals (z-score)")
+```
+
+NB sempre la regola se vuoi tornare alla scala originale non
+log-trasformata
+
+```{r}
+library(sp)
+library(gstat)
+data(meuse)
+coordinates(meuse) = ~x+y
+
+# Variogramma
+v <- variogram(log(zinc) ~ 1, meuse)
+v.fit <- fit.variogram(v, vgm("Sph"))
+
+# Kriging su scala log
+cv <- krige.cv(log(zinc) ~ 1, meuse, model = v.fit)
+# predizione log e varianza
+yhat <- cv$var1.pred
+sigma2 <- cv$var1.var
+
+# predizione back-log (bias correction)
+z_pred <- exp(yhat + sigma2/2)
+
+# residui back-log
+z_obs <- meuse$zinc
+resid_orig <- z_obs - z_pred
+
+# deviazione standard back-log
+sd_orig <- sqrt(exp(2*yhat + sigma2) * (exp(sigma2) - 1))
+
+# z-score back-log
+zscore_orig <- resid_orig / sd_orig
+
+# aggiungo al dataset
+meuse$resid_backlog <- resid_orig
+meuse$zscore_backlog <- zscore_orig
+
+# Controllo
+head(meuse@data[, c("zinc", "resid_backlog", "zscore_backlog")])
+
+
+spplot(meuse, 
+       "zscore_backlog", 
+	   	 at = seq(-2, 2,   length.out = 10), # colour breaks
+		   col.regions =colorRampPalette(c("blue", "grey", "red"))(10) ,
+       main = "Standardized residuals (z-score)")
 
 ```

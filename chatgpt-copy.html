@@ -1,0 +1,67 @@
+<style>
+/* Wrap code blocks so we can position the button */
+.pre-wrapper {
+  position: relative;
+}
+
+/* ChatGPT-style copy button */
+.chatgpt-copy-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+  padding: 4px;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s ease-in-out;
+}
+
+.chatgpt-copy-btn:hover {
+  opacity: 1;
+}
+
+.chatgpt-copy-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+</style>
+
+<script>
+// Find all code blocks
+document.querySelectorAll("pre code").forEach(code => {
+
+  const pre = code.parentNode;
+
+  // Wrap <pre> inside a div for positioning
+  const wrapper = document.createElement("div");
+  wrapper.className = "pre-wrapper";
+  pre.parentNode.insertBefore(wrapper, pre);
+  wrapper.appendChild(pre);
+
+  // Create the ChatGPT-style copy button
+  const btn = document.createElement("button");
+  btn.className = "chatgpt-copy-btn";
+  btn.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none">
+      <path d="M8 8.00003V4C8 3.44772 8.44772 3 9 3H20C20.5523 3 21 3.44772 21 4V15C21 15.5523 20.5523 16 20 16H16M8 8H4C3.44772 8 3 8.44772 3 9V20C3 20.5523 3.44772 21 4 21H15C15.5523 21 16 20.5523 16 20V16M8 8H15C15.5523 8 16 8.44772 16 9V16"
+        stroke="#6e6e80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  `;
+
+  // Copy logic
+  btn.onclick = () => {
+    navigator.clipboard.writeText(code.innerText);
+    btn.style.opacity = 1;
+    btn.style.borderColor = "#5c5cff";
+    setTimeout(() => {
+      btn.style.opacity = 0.6;
+      btn.style.borderColor = "#e2e2e2";
+    }, 1200);
+  };
+
+  wrapper.appendChild(btn);
+});
+</script>

@@ -74,13 +74,13 @@ in cartella "dati"\
 metodi di interpolazione geografica\
 <https://r-spatial.org/book/12-Interpolation.html>
 
-Applied Spatial Data Analysis with R
+Applied Spatial Data Analysis with R (Bivand et al.)
 <https://gis.humboldt.edu/OLM/r/Spatial%20Analysis%20With%20R.pdf>
 
 ## Obiettivo
 
-Seguiremo il testo "Applied Spatial Data Analysis with R " di Bivand
-Pebema e Gómez-Rubio (vedi link sopra)
+Seguiremo il testo "Applied Spatial Data Analysis with R " di Bivand,
+Pebesma e Gómez-Rubio (vedi link sopra)
 
 ## Giornata 1
 
@@ -307,24 +307,52 @@ plot(v.dir, v.anis)
 
 I modelli multivariati considerano più variabili dipendenti, ovvero
 variabili coregionalizzate (o coregionalized variables) che sono
-variabili che vengono analizzate congiuntamente, perché [correlate tra
-loro nello spazio]{.underline}. L’idea è che una variabile possa
-“aiutare” a stimare un’altra, se condividono una struttura di dipendenza
-spaziale.
+variabili che vengono analizzate congiuntamente, perché misurate insieme
+e [correlate tra loro nello spazio]{.underline}. L’idea è che una
+variabile possa “aiutare” a stimare un’altra, se condividono una
+struttura di dipendenza spaziale e se c'è correlatzione.
 
 ```{r}
-## c'è correlazione?
 cor(as.data.frame(meuse)[c("cadmium", "copper", "lead", "zinc")])
-## se si allora possiamo creare una struttura multivariata
+```
+
+Ho quattro variabili (Cd, Cu, Pb, Zn), log-trasformate, misurate negli
+stessi punti. Voglio modellarle [insieme]{.underline} per il co-kriging
+
+```{r}
+
 g <- gstat(NULL, "logCd", log(cadmium) ~ 1, meuse)
 g <- gstat(g, "logCu", log(copper) ~ 1, meuse)
 g <- gstat(g, "logPb", log(lead) ~ 1, meuse)
 g <- gstat(g, "logZn", log(zinc) ~ 1, meuse)
+```
 
+Si calcolano variogrammi e cross-variogrammi, 4 variogrammi diretti
+(Cd–Cd, Cu–Cu, Pb–Pb, Zn–Zn), 6 cross-variogrammi (Cd–Cu, Cd–Pb, … etc.)
+
+In totale 10 curve che descrivono: la variabilità spaziale di ogni
+elemento, come questi co-variano nello spazio
+
+```{r}
 vm <- variogram(g)
+```
+
+Si adatta/stima un LMC (Linear Model of Coregionalization) - Usa
+un’unica struttura variografica (sferica, range 800) e costruisce un
+modello multivariato valido per tutte le variabili. Ovvero: prende lo
+stesso modello di variogramma (sferico) per ogni elemento, e stima, un
+sill per ogni variabile, un cross-sill per ogni coppia e mette questi
+sill e cross-sill in una matrice di coregionalizzazione. La matrice deve
+essere semidefinita positiva (garantisce che il modello multivariato sia
+valido)
+
+```{r}
 vm.fit <- fit.lmc(vm, g, vgm(1, "Sph", 800, 1))
 plot(vm, vm.fit)
 ```
+
+Adesso che ho stimato il modello posso interpolare (vedi sezione su
+[Cokriging - modelli su multivariate])
 
 ## Modello del variogramma dei residui
 
@@ -351,11 +379,7 @@ nota che viene utilizzato il tipo di kriging in funzione dei dati di
 input
 
 ```{r}
-lz.sk <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit,beta = 5.9)
-
-lz.ok <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit)
-
-lz.uk <- krige(log(zinc) ~ sqrt(dist), meuse, meuse.grid, vt.fit)
+lz.sk <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit,beta = 5.9) 
 ```
 
 ### Kriging ordinario
@@ -377,7 +401,8 @@ lz.uk <- krige(log(zinc) ~ poly(x,y), meuse, meuse.grid, vt.fit)
 ### Kriging con deriva esterna (EDK - external drift kriging)
 
 Un tipo specifico di UK dove la tendenza della variabile da prevedere è
-modellata in funzione di un predittore esterno.
+modellata in funzione di un predittore esterno, sempre noto in tutto lo
+spazio del campo di calcolo.
 
 ```{r}
 lz.edk <- krige(log(zinc) ~ sqrt(dist), meuse, meuse.grid, vt.fit)
@@ -385,9 +410,24 @@ lz.edk <- krige(log(zinc) ~ sqrt(dist), meuse, meuse.grid, vt.fit)
 
 ### Cokriging - modelli su multivariate
 
+Applico il modello adattato nella sezione [Modelli Multivariati -
+Co-kriging]
+
 ```{r}
-# vm.fit è l'oggetto GSAT utilizzato prima
- cok.maps <- predict(vm.fit, meuse.grid)
+cok.maps <- predict(vm.fit, meuse.grid)
+```
+
+Posso disegnare le mappe delle stime spazializzate sulla griglia.
+
+```{r}
+# spplot(cok.maps)
+spplot(cok.maps[ , grep("pred$", names(cok.maps))])
+```
+
+Una specie di “mappa dell’incertezza multivariata”. Mostra: varianze di
+predizione (una mappa per variabile) + covarianze tra variabili
+
+```{r}
  spplot.vcov(cok.maps)
 ```
 

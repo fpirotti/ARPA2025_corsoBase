@@ -610,7 +610,7 @@ spplot(pred["var1.var"], main="Universal kriging con soil come covariata Varianz
 
 ```
 
-## Nota su interpretazione
+## Nota su interpretazione scale trasformate
 
 A volte si trasforma la variabile dipendente con log o altro. Attenzione
 nel voler tornare alla scala lineare.
@@ -651,10 +651,11 @@ quello di separare il dataset in un set di misure da usare per il
 modello ed un set misure da usare per la validazione. Importante che i
 due set siano entrambi rappresentativi della distribuzione (non biased).
 
-*cross-validazione: leave-one-out o k-fold.*
+*cross-validazione: leave-one-out o k-fold.* **Attenzione** che
+"leave-one-out" richiede molto tempo in quanto esegue krige tante volte
+quanti sono i punti!
 
 ```{r}
-## attenzione che "leave-one-out" richiede molto tempo in quanto esegue krige tante volte quanti sono i punti!
 cv <- krige.cv(log(zinc) ~ 1, meuse, model = v.fit)
 ```
 

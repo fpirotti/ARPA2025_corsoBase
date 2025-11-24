@@ -395,7 +395,11 @@ varabilità che è funzione della posizione. Utilizza dunque informazioni
 note in tutte le posizioni di previsione.
 
 ```{r}
-lz.uk <- krige(log(zinc) ~ poly(x,y), meuse, meuse.grid, vt.fit)
+f <- log(zinc) ~ poly(x,y)
+vt <- variogram(f, meuse)
+vt.fit <- fit.variogram(vt, vgm(1, "Exp", 300, 1))
+vt.fit
+lz.uk <- krige(f, meuse, meuse.grid, vt.fit)
 ```
 
 ### Kriging con deriva esterna (EDK - external drift kriging)
@@ -663,6 +667,9 @@ cv <- krige.cv(log(zinc) ~ 1, meuse, model = v.fit)
 
 Alla fine devo avere degli indicatori per confrontare "quale metodo
 funziona meglio"
+
+Vedi codice in script R
+[giorno3.meuse.R](esercizi/modulo2/giorno3.meuse.R)
 
 ```{r}
 # Errori:

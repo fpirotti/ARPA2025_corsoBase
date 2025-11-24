@@ -3,7 +3,11 @@ title: "ANALISI GEOSTATISTICA DEI DATI AMBIENTALI – Livello intermedio (T28_25
 author: "Francesco Pirotti"
 date: "`r Sys.Date()`"
 output:
-  html_document:
+  rmdformats::readthedown:
+    highlight: kate
+    includes:
+      after_body: chatgpt-copy.html
+  html_notebook:
     toc: true
     toc_depth: 2
     toc_float:
@@ -14,7 +18,7 @@ output:
     fig_height: 4
     footer: 2025, Prof. Francesco Pirotti
     css: style.css
-  html_notebook:
+  html_document:
     toc: true
     toc_depth: 2
     toc_float:
@@ -139,45 +143,13 @@ Ripasso, analisi esplorativa dei dati per verifiche presupposti
 
 ## Giornata 3
 
+-   Esercizi con tipologie diverse di Kriging
+
 -   Simulazioni (tipo Monte Carlo)
 
--   valutazione dell’incertezza e applicazioni avanzate
+-   Valutazione dell’incertezza
 
-<!-- **Parte teorica (\~40 min):** -->
-
-<!-- -   Simulazione geostatistica: differenza tra stima (una mappa “best -->
-
-<!--     guess”) e simulazione (mappe multiple per valutare l’incertezza). -->
-
-<!-- -   Validazione, metodi: leave-one-out, k-fold etc... -->
-
-<!-- -   Discussione sulle sfide avanzate: anisotropia, non-stazionarietà, -->
-
-<!--     grande quantità di dati spaziali -->
-
-<!-- **Parte pratica (\~110 min):** -->
-
-<!-- -   Replicare su un dataset diverso generando più mappe con parametri -->
-
-<!--     diversi -->
-
-<!-- -   Comparare mappe, calcolare statistiche dell’incertezza -->
-
-<!-- -   Realizzare un “mini-case” applicativo: selezionare un’area del -->
-
-<!--     dataset, interpretare cosa -->
-
-<!-- **Riassunto (\~10 min):** -->
-
-<!-- -   Sintesi delle tre lezioni, punti chiave da portare avanti -->
-
-<!-- -   Discussione su possibili progetti futuri, integrazione con altri -->
-
-<!--     moduli del corso, uso in ricerca/foreste/geomatica -->
-
-<!-- -   Feedback rapido dagli studenti: cosa è stato utile, cosa vorrebbero -->
-
-<!--     approfondire -->
+-   Validazione (cross validation)
 
 ## Dati di esempio
 
@@ -193,7 +165,7 @@ library(gstat)
 library(kableExtra)
 library(sp)
 data(meuse)
-class(meuse)
+#class(meuse)
 
 kable(head(meuse, 5), caption = "Dataset *meuse*") %>%
   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
@@ -204,12 +176,12 @@ trovate nel file CSV
 
 ```{r}
 ## pg 192 del testo
+##  trovate i dati climatici del veneto in formato CSV nella cartella "dati"... il CRS è il 3003 (Gauss Boaga Fuso Ovest) - per replicare
+
 data(meuse)
 coordinates(meuse) <- c("x", "y")
 spplot(meuse, "zinc", do.log = T)
 bubble(meuse, "zinc", do.log = T, key.space = "bottom")
-
-### trovate il dato veneto in formato CSV nella cartella "dati"... il CRS è il 3003 (Gauss Boaga Fuso Ovest)
 
 
 ```
@@ -231,13 +203,20 @@ spplot(meuse, c("fitted.s", "residuals"))
 
 ### Inverso della distanza
 
+Attenzione usiamo idw esprimendolo usando gstat::idw in quanto altri
+packages in R hanno la funzione IDW e può causare confusione ed errori
+
+![](images/clipboard-4235030383.png){width="493"}
+
+![](images/clipboard-3141007674.png){width="361"}
+
 ```{r}
 library(gstat)
 data(meuse.grid)
 coordinates(meuse.grid) <- c("x", "y")
 meuse.grid <- as(meuse.grid, "SpatialPixelsDataFrame")
 
-idw.out <- idw(zinc ~ 1, meuse, meuse.grid, idp = 2.5)
+idw.out <- gstat::idw(zinc ~ 1, meuse, meuse.grid, idp = 2.5)
 ```
 
 ### Interpolazione lineare o non-lineare
@@ -272,7 +251,7 @@ attenzione, vedi sotto
 hscat(log(zinc) ~ 1, meuse, (0:9) * 100)
 
 ## ma come quantificare la correlazione spaziale? Indice di Moran - 
-library(spdep)
+suppressPackageStartupMessages(library(spdep))
 nb <- dnearneigh(coordinates(meuse), 0, 3000)
 lw <- nb2listw(nb, style = "W")
 
@@ -303,10 +282,9 @@ scatplot$plane3d(fit)
 ### Modello del variogramma
 
 ```{r}
-
-
 ## oppure classico variogramma
-variogram(log(zinc) ~ 1, meuse, cloud = TRUE)
+# attenzione  qui fornisce TUTTE le combinazioni
+# variogram(log(zinc) ~ 1, meuse, cloud = TRUE)
 ## library(geoR)
 v <- variogram(log(zinc) ~ 1, meuse)
 v.fit <- fit.variogram(v, vgm(1, "Sph", 800, 1))
@@ -325,7 +303,7 @@ plot(v.dir, v.anis)
 # plot(variogram(log(zinc) ~ 1, meuse, map = TRUE, cutoff = 1000, width = 100))
 ```
 
-## Modelli Multivariati - co-kriging
+## Modelli Multivariati - Co-kriging
 
 I modelli multivariati considerano più variabili dipendenti, ovvero
 variabili coregionalizzate (o coregionalized variables) che sono
@@ -367,16 +345,42 @@ g.wls <- gstat(NULL, "log-zinc", f, meuse, model = vt.fit, set = list(gls = 1))
 
 ## Interpolazioni geospaziali
 
-### Kriging "semplici"
+### Kriging "semplice"
+
+nota che viene utilizzato il tipo di kriging in funzione dei dati di
+input
 
 ```{r}
-## nota che viene utilizzato il tipo di kriging in funzione dei dati di input
-
 lz.sk <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit,beta = 5.9)
 
 lz.ok <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit)
 
 lz.uk <- krige(log(zinc) ~ sqrt(dist), meuse, meuse.grid, vt.fit)
+```
+
+### Kriging ordinario
+
+```{r}
+lz.ok <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit)
+```
+
+### Kriging universale
+
+Solitamente utilizza le coordinate ed una polinomiale per catturare la
+varabilità che è funzione della posizione. Utilizza dunque informazioni
+note in tutte le posizioni di previsione.
+
+```{r}
+lz.uk <- krige(log(zinc) ~ poly(x,y), meuse, meuse.grid, vt.fit)
+```
+
+### Kriging con deriva esterna (EDK - external drift kriging)
+
+Un tipo specifico di UK dove la tendenza della variabile da prevedere è
+modellata in funzione di un predittore esterno.
+
+```{r}
+lz.edk <- krige(log(zinc) ~ sqrt(dist), meuse, meuse.grid, vt.fit)
 ```
 
 ### Cokriging - modelli su multivariate
@@ -390,9 +394,11 @@ lz.uk <- krige(log(zinc) ~ sqrt(dist), meuse, meuse.grid, vt.fit)
 ## Collocated Cokriging
 
 Due condizioni differenti quando abbiamo una variabile indipendente
-disponibile sia nei punti campione sia nei punti che vogliamo stimare
-(la griglia). Come nel caso della distanza dai corsi d'acqua nel caso
-Meuse
+potenzialmente correlata con la variabile dipendente (che vogliamo
+stimare) che è disponibile sia nei punti campione sia nei punti che
+vogliamo stimare (la griglia). Come nel caso della distanza dai corsi
+d'acqua nel caso Meuse o ad esempio la quota nel caso di variabili
+climatiche del Veneto...
 
 ```{r}
 #Crea un oggetto gstat per log(zinc) nel dataset meuse.
@@ -441,10 +447,12 @@ Globale può diventare pesante computazionalmente
 # Local kriging: nmax = numero massimo di vicini considerati
 # Qui consideriamo solo i 5 vicini più prossimi per ogni predizione
 lk <- gstat(NULL, "log.zinc", log(zinc) ~ 1, meuse, model=v.fit, nmax=5) 
-# Predizione
+# Stima
 pred <- predict(lk, meuse.grid) 
+pred@data$log.zinc.sd <- pred@data$log.zinc.var^0.5
 # Plot
-spplot(pred, "log.zinc.pred", main="Local Ordinary Kriging (nmax=5)")
+spplot(pred, "log.zinc.pred", main="Local Ordinary Kriging Stima (nmax=5)")
+spplot(pred, "log.zinc.sd", main="Local Ordinary Kriging Incertezza (Dev. Std.) (nmax=5)")
 ```
 
 ## Block kriging
@@ -462,25 +470,26 @@ parte della variabilità interna ai blocchi si media, e quindi le medie
 dei blocchi hanno errori di stima più bassi, pur mantenendo visibili i
 pattern spaziali, purché i blocchi non siano troppo grandi.
 
-```{r}
+```{r, fig.show='hold', out.width='50%'}
  lz.ok <- krige(log(zinc) ~ 1, meuse, meuse.grid, v.fit, block = c(40, 40))
- plot(lz.ok)
+ spplot(lz.ok["var1.pred"], main="Stima")
+ spplot( lz.ok["var1.var"], main="Varianza" )
 ```
 
 ## Kriging stratificato/indicator?
 
-Quando è disponibile una variabile categorica che suddivide l’area di
-interesse in un certo numero di aree disgiunte, ad esempio classi di uso
-del suolo o qualche altro fattore, potremmo voler applicare il kriging
-separatamente per le diverse classi. Questo approccio si chiama
-stratified kriging (kriging stratificato).
+Quando è disponibile una variabile **discreta** (**categorie)** che
+suddivide l’area di interesse in un certo numero di aree disgiunte, ad
+esempio classi di uso del suolo o qualche altro fattore, potremmo voler
+applicare il kriging separatamente per le diverse classi. Questo
+approccio si chiama stratified kriging (kriging stratificato).
 
 Il motivo per applicare il kriging per classe è che la struttura di
 covarianza (semivariogramma) può essere diversa tra le classi. A
 differenza del universal kriging con un predittore categorico, in questo
 caso non si assume alcuna correlazione tra i residui delle diverse
-classi. Altro esempio: temperatura in zone urbane vs temperatura in zone
-non urbane
+classi. Esempio: temperatura in zone urbane vs temperatura in zone non
+urbane.
 
 ```{r}
 library(sp)
@@ -524,7 +533,7 @@ spplot(lz.stk["var1.pred"], main = "Predizioni con kriging stratificato")
 
 ```
 
-## Kriging trend con variabile discreta
+## Kriging con trend con variabile discreta
 
 Diverso da indicator kriging ... modella il trend come dipendente dalla
 categoria soil, e poi stima un **unico** variogramma dei residui;
@@ -561,7 +570,7 @@ spplot(pred["var1.var"], main="Universal kriging con soil come covariata Varianz
 
 ```
 
-## Nota su interpretazione 
+## Nota su interpretazione
 
 A volte si trasforma la variabile dipendente con log o altro. Attenzione
 nel voler tornare alla scala lineare.

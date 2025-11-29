@@ -4,12 +4,14 @@ author: "Francesco Pirotti"
 date: "`r Sys.Date()`"
 output:
   rmdformats::readthedown:
-    highlight: kate
+    highlight: "rstudio"  # any highlight.js style 
+    collapse: false
     includes:
       after_body: chatgpt-copy.html
   html_notebook:
     toc: true
     toc_depth: 2
+    collapse: false
     toc_float:
       collapsed: true
       smooth_scroll: false
@@ -59,23 +61,24 @@ suppressMessages(library(sjPlot))
 </style>
 ```
 
+# ANALISI GEOSTATISTICA DEI DATI AMBIENTALI – Livello intermedio
+
 ## Riferimenti utili
 
-CRS - coordinate reference system\
+**CRS** - coordinate reference system
+
 <https://r.geocompx.org/spatial-class#crs-intro>\
 <https://r-spatial.org/book/02-Spaces.html#sec-crs>\
 \
-meuse dataset\
+**meuse dataset** -
 <https://cloud.r-project.org/web/packages/gstat/vignettes/gstat.pdf>
 
-veneto dataset\
-in cartella "dati"\
+veneto dataset in cartella "**dati**"\
 \
-metodi di interpolazione geografica\
+metodi di interpolazione geografica -
 <https://r-spatial.org/book/12-Interpolation.html>
 
-Applied Spatial Data Analysis with R (Bivand et al.)
-<https://gis.humboldt.edu/OLM/r/Spatial%20Analysis%20With%20R.pdf>
+#### Applied Spatial Data Analysis with R (Bivand et al.)  - <https://gis.humboldt.edu/OLM/r/Spatial%20Analysis%20With%20R.pdf>
 
 ## Obiettivo
 
@@ -84,9 +87,8 @@ Pebesma e Gómez-Rubio (vedi link sopra)
 
 ## Giornata 1
 
-Ripasso, analisi esplorativa dei dati per verifiche presupposti
-
-**Parte teorica (\~1 ora):**
+-   Ripasso basi teoriche, analisi esplorativa dei dati per verifiche
+    presupposti al Kriging
 
 -   Richiamo sulle statistiche descrittive, distribuzioni,
     trasformazioni, sistemi di riferimento
@@ -96,29 +98,6 @@ Ripasso, analisi esplorativa dei dati per verifiche presupposti
 
 -   Il variogramma: definizione, semivarianza, sperimentale vs modello,
     legame con la continuità spaziale.
-
-**Parte pratica (\~90 min):**
-
--   Caricamento di un dataset ambientale (es. concentrazioni suolo,
-    misure vegetazione, temperatura)
-
--   Exploratory Data Analysis: mappe puntuali, geolocalizzazione,
-    scatter plot, istogrammi
-
--   Calcolo dell’autocorrelazione (es. indice di Moran) e del
-    variogramma sperimentale
-
--   Discussione: “Cosa ci dice il variogramma? Quali sono i punti deboli
-    (campionamento, anisotropia, non stazionarietà)?”
-
--   Interpolazione Kriging, ordinaria, universale, co-kriging...
-
-**Riassunto (\~30 min):**
-
--   Assegnazione di un esercizio da consegnare
-
--   Discussione aperta su cosa ci si aspetta in diversi ambiti ARPA
-    (suolo, meteo, inquinamento, ecc)
 
 ## Giornata 2
 
@@ -134,18 +113,9 @@ Ripasso, analisi esplorativa dei dati per verifiche presupposti
 
 -   Introduzione alla validazione
 
-**Riassunto (\~30 min):**
-
--   Assegnazione di un esercizio da consegnare
-
--   Discussione aperta su cosa ci si aspetta in diversi ambiti ARPA
-    (suolo, meteo, inquinamento, ecc)
-
 ## Giornata 3
 
 -   Esercizi con tipologie diverse di Kriging
-
--   Simulazioni (tipo Monte Carlo)
 
 -   Valutazione dell’incertezza
 
@@ -168,22 +138,25 @@ data(meuse)
 #class(meuse)
 
 kable(head(meuse, 5), caption = "Dataset *meuse*") %>%
-  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover"))%>%
+  kable_styling(latex_options = "scale_down")
 ```
 
 Esercizio: provate a replicare quanto sotto con il dataset "Veneto" che
 trovate nel file CSV
 
-```{r}
-## pg 192 del testo
-##  trovate i dati climatici del veneto in formato CSV nella cartella "dati"... il CRS è il 3003 (Gauss Boaga Fuso Ovest) - per replicare
+pg 192 del testo [Applied Spatial Data Analysis with R (Bivand et al.) -
+https://gis.humboldt.edu/OLM/r/Spatial%20Analysis%20With%20R.pdf]
 
+[ Trovate i dati climatici del veneto in formato CSV nella cartella
+"dati"... il CRS dei dati del Veneto è il 3003 (Gauss Boaga Fuso Ovest)
+]
+
+```{r}
 data(meuse)
 coordinates(meuse) <- c("x", "y")
 spplot(meuse, "zinc", do.log = T)
 bubble(meuse, "zinc", do.log = T, key.space = "bottom")
-
-
 ```
 
 ## Analisi Esplorativa dei dati
@@ -231,8 +204,6 @@ meuse.tr2 <- krige(log(zinc) ~ 1, meuse, meuse.grid, degree = 2)
 ## oppure
 lm(log(zinc) ~ I(x^2) + I(y^2) + I(x * y) + x + y, meuse)
 ```
-
-## 
 
 ## Test autocorrelazione spaziale
 
@@ -668,8 +639,8 @@ cv <- krige.cv(log(zinc) ~ 1, meuse, model = v.fit)
 Alla fine devo avere degli indicatori per confrontare "quale metodo
 funziona meglio"
 
-Vedi codice in script R
-[giorno3.meuse.R](esercizi/modulo2/giorno3.meuse.R)
+**Vedi codice in script R
+[giorno3.meuse.R](esercizi/modulo2/giorno3.meuse.R)**
 
 ```{r}
 # Errori:
@@ -701,6 +672,10 @@ compare <- data.frame(
 compare
 
 ```
+
+**Vedi codice in script R
+[giorno3.meuse.R](esercizi/modulo2/giorno3.meuse.R) per una procedura
+che raccoglie i modelli e li valida tramite una funzione**
 
 ## Mappa degli errori standardizzati
 
